@@ -1,5 +1,5 @@
 {
-  description = "mnm-codespaces";
+  description = "Flakes-based Codespaces home base with Nix, devenv, Neovim, and CLI tools";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
@@ -23,7 +23,7 @@
               git curl jq nodejs python3 direnv
               tmux fzf ripgrep fd bat tree htop neovim wget
             ];
-            scripts.hello.exec  = "echo '👋 Welcome !'";
+            scripts.hello.exec  = "echo '👋 Welcome to your Nix + Neovim Codespace!'";
             scripts.update.exec = "nix flake update && git add flake.lock && git commit -m 'chore: update flake inputs' || true";
           }];
         };

@@ -1,26 +1,23 @@
-# 🌀 mnm Homebase 
+# 🌀 Nix Homebase (Flakes + Neovim) — v2
 
-Codespaces “home base” built with **Nix flakes**, **devenv.sh**, **direnv**, and **Neovim**.
+- No hardcoded user: works with **vscode** or **codespace**.
+- **direnv** + **neovim** preinstalled; PATH and hooks applied via `$HOME`.
+- Which Key extension included.
 
-## Quick start
-1) Create a new repo on GitHub (private).
-2) Upload this tarball’s contents or push via git (see below).
-3) In Codespaces: Command Palette → **Codespaces: Rebuild Container**.
-4) First run:
+## Import to GitHub
+```bash
+tar -xzf nix-homebase-flakes-v2.tar.gz
+cd nix-homebase-flakes-v2
+git init && git add .
+git commit -m "chore: flakes-based Codespaces home base (v2: user-agnostic hooks)"
+gh repo create homebase-flakes --private --source=. --remote=origin --push
+```
+
+## In Codespaces
+1. Command Palette → **Codespaces: Rebuild Container**
+2. First run:
    ```bash
    direnv allow
    hello
+   nvim --version
    ```
-5) Update flake inputs:
-   ```bash
-   update
-   ```
-
-## Push via CLI
-```bash
-tar -xzf nix-homebase-flakes.tar.gz
-cd nix-homebase-flakes
-git init && git add .
-git commit -m "chore: flakes-based Codespaces home base (Nix + devenv + Neovim)"
-gh repo create homebase-flakes --private --source=. --remote=origin --push
-```

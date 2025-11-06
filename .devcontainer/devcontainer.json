@@ -12,13 +12,12 @@
   "containerEnv": {
     "NIX_CONFIG": "experimental-features = nix-command flakes"
   },
-  "onCreateCommand": "echo 'eval \"$(direnv hook zsh)\"' >> /home/codespace/.zshrc",
+  "onCreateCommand": "echo 'export PATH=\"$HOME/.nix-profile/bin:$PATH\"' >> \"$HOME/.bashrc\"; echo 'export PATH=\"$HOME/.nix-profile/bin:$PATH\"' >> \"$HOME/.zshrc\"; echo 'eval \"$(direnv hook bash)\"' >> \"$HOME/.bashrc\"; echo 'eval \"$(direnv hook zsh)\"' >> \"$HOME/.zshrc\"",
   "postCreateCommand": "curl -L https://raw.githubusercontent.com/cachix/devenv/latest/install.sh | bash && direnv allow || true",
-  "remoteUser": "codespace",
   "customizations": {
     "vscode": {
       "settings": {
-        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.defaultProfile.linux": "bash",
         "vscode-neovim.neovimExecutablePaths.linux": "/usr/bin/nvim",
         "vim.enableNeovim": true
       },
@@ -27,6 +26,7 @@
         "jnoortheen.nix-ide",
         "mkhl.direnv",
         "asvetliakov.vscode-neovim",
+        "VSpaceCode.whichkey",
         "ms-vscode-remote.remote-containers"
       ]
     }
