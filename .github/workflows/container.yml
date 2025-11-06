@@ -31,26 +31,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build core image (nix)
-        run: nix build .#homebase-core-image
+      - name: Build image (nix)
+        run: nix build .#homebase-image --out-link img
 
-      - name: Load core image tar into Docker
-        run: docker load < result
+      - name: Load image
+        run: docker load < img
 
-      - name: Tag & push core
+      - name: Tag & push
         run: |
-          IMAGE=ghcr.io/${{ github.repository }}:${{ github.event.inputs.tag || 'latest' }}-core
-          docker tag nix-homebase-core:latest "$IMAGE"
-          docker push "$IMAGE"
-
-      - name: Build cloud image (nix)
-        run: nix build .#homebase-cloud-image
-
-      - name: Load cloud image tar into Docker
-        run: docker load < result
-
-      - name: Tag & push cloud
-        run: |
-          IMAGE=ghcr.io/${{ github.repository }}:${{ github.event.inputs.tag || 'latest' }}-cloud
-          docker tag nix-homebase-cloud:latest "$IMAGE"
+          IMAGE=ghcr.io/${{ github.repository }}:${{ github.event.inputs.tag || 'latest' }}
+          docker tag nix-homebase:latest "$IMAGE"
           docker push "$IMAGE"

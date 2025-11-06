@@ -1,19 +1,12 @@
 {
-  description = "nix-homebase: flake-only env + OCI images with template";
+  description = "nix-homebase: single nix-enabled image + flake dev env";
 
   nixConfig = {
     experimental-features = [ "nix-command" "flakes" ];
-    substituters = [
-      "https://cache.nixos.org/"
-      "https://cache.cachix.org"
-    ];
-    trusted-public-keys = [
-      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-      "cachix.org-1:bfVvKxB9...REPLACEME..."
-    ];
+    substituters = [ "https://cache.nixos.org/" "https://cache.cachix.org" ];
+    trusted-public-keys = [ "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=" "cachix.org-1:bfVvKxB9...REPLACEME..." ];
     http-connections = 50;
-    warn-dirty = false;
-    fallback = true;
+    accept-flake-config = true;
   };
 
   inputs = {
@@ -31,7 +24,6 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
-        # Build-time VS Code settings with pinned store paths
         settingsJson = builtins.toJSON {
           "vscode-neovim.neovimExecutablePaths.linux" = "${pkgs.neovim}/bin/nvim";
           "direnv.path.executable" = "${pkgs.direnv}/bin/direnv";
@@ -54,88 +46,77 @@
           text = settingsJson;
         };
 
-        # Core toolset
-        pyAi = pkgs.python3.withPackages (ps: [
-          ps.openai ps.anthropic ps.google-generativeai
-          ps.black ps.isort ps.ruff ps.yamllint
-        ]);
+        pyAi = pkgs.python3.withPackages (ps: [ ps.openai ps.anthropic ps.google-generativeai ps.black ps.isort ps.ruff ps.yamllint ]);
 
-        corePkgs = with pkgs; [
-          # core
+        allPkgs = with pkgs; [
           bashInteractive coreutils gnused gnugrep findutils procps shadow
           git gh curl jq nodejs python3 openssl wget
           tmux fzf ripgrep fd bat tree htop
-          # network + diagnostics
           iproute2 iputils traceroute mtr whois lsof ethtool nmap nmap-ncat socat tcpdump
           bind mosh
-          # hygiene
           pre-commit editorconfig-checker nixfmt-rfc-style
-          # editor/env tools
           neovim direnv nix-direnv
-          # formatters/linters
-          shellcheck shfmt nodePackages.prettier nodePackages.eslint
-          nodePackages.markdownlint-cli stylua
-          # LSPs
-          nodePackages.bash-language-server
-          nodePackages.pyright
-          nodePackages.typescript-language-server
-          nodePackages.yaml-language-server
-          nodePackages.vscode-langservers-extracted # html/css/json
-          nodePackages.dockerfile-language-server-nodejs
-          lua-language-server
-        ] ++ [ pyAi ]
-          ++ (pkgs.lib.optional (pkgs ? aider-chat) pkgs.aider-chat);
-
-        cloudPkgs = with pkgs; [
+          shellcheck shfmt nodePackages.prettier nodePackages.eslint nodePackages.markdownlint-cli stylua
+          nodePackages.bash-language-server nodePackages.pyright nodePackages.typescript-language-server nodePackages.yaml-language-server nodePackages.vscode-langservers-extracted nodePackages.dockerfile-language-server-nodejs lua-language-server
+          nix cacert
           google-cloud-sdk awscli2 flyctl cloudflared nodePackages.wrangler
-        ];
+        ] ++ [ pyAi ] ++ (pkgs.lib.optional (pkgs ? aider-chat) pkgs.aider-chat);
 
-        # Helper: build a layered image with /opt/homebase-template and a welcome script
-        mkImage = name: extraPkgs:
-          pkgs.dockerTools.buildLayeredImage {
-            inherit name;
-            tag = "latest";
-            contents = corePkgs ++ extraPkgs ++ [
-              (pkgs.writeShellScriptBin "homebase-welcome" ''
-                echo "Welcome to ${name}!"
-                echo "A project template is available at /opt/homebase-template"
-                echo "You can copy it to start a new project:"
-                echo "  cp -r /opt/homebase-template ~/new-project && cd ~/new-project"
-                echo "  direnv allow && nix develop"
-              '')
-              (pkgs.writeTextDir "/opt/homebase-template/flake.nix" (builtins.readFile ./template/flake.nix))
-              (pkgs.writeTextDir "/opt/homebase-template/.envrc" (builtins.readFile ./template/.envrc))
-              (pkgs.writeTextDir "/opt/homebase-template/README.md" (builtins.readFile ./template/README.md))
+        entry = pkgs.writeShellScriptBin "homebase-entry" ''
+          set -e
+          if [ ! -d /nix ]; then mkdir -p /nix; fi
+          chown -R root:root /nix || true
+          chmod 0755 /nix || true
+          export USER=root
+          export HOME=/root
+          export NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
+          export NIX_CONFIG="experimental-features = nix-command flakes
+accept-flake-config = true"
+          echo "Nix ready. Template at /opt/homebase-template"
+          exec bash -l
+        '';
+
+        homebase = pkgs.dockerTools.buildLayeredImage {
+          name = "nix-homebase";
+          tag = "latest";
+          contents = allPkgs ++ [
+            entry
+            (pkgs.writeShellScriptBin "homebase-welcome" ''
+              echo "Welcome to nix-homebase"
+              echo "Copy the template:"
+              echo "  cp -r /opt/homebase-template ~/new-project && cd ~/new-project"
+              echo "  direnv allow && nix develop"
+            '')
+            (pkgs.writeTextDir "/opt/homebase-template/flake.nix" (builtins.readFile ./template/flake.nix))
+            (pkgs.writeTextDir "/opt/homebase-template/.envrc" (builtins.readFile ./template/.envrc))
+            (pkgs.writeTextDir "/opt/homebase-template/README.md" (builtins.readFile ./template/README.md))
+          ];
+          config = {
+            Env = [
+              "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+              "NIX_CONFIG=experimental-features = nix-command flakes
+accept-flake-config = true"
+              "HOME=/root"
+              "PATH=/bin:/usr/bin:/sbin:/usr/sbin:${pkgs.coreutils}/bin"
             ];
-            config = {
-              Env = [
-                "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-                "PATH=/bin:/usr/bin:/sbin:/usr/sbin:${pkgs.coreutils}/bin"
-                "HOME=/root"
-              ];
-              WorkingDir = "/workspace";
-              Cmd = [ "${pkgs.bashInteractive}/bin/bash" "-lc" "homebase-welcome && exec bash" ];
-              Labels = {
-                "org.opencontainers.image.title" = name;
-                "org.opencontainers.image.source" = "https://github.com/owner/repo";
-              };
+            WorkingDir = "/workspace";
+            Cmd = [ "${entry}/bin/homebase-entry" ];
+            Labels = {
+              "org.opencontainers.image.title" = "nix-homebase";
+              "org.opencontainers.image.source" = "https://github.com/owner/repo";
             };
           };
-
+        };
       in {
         editor-settings = editor-settings;
-        homebase-core-image  = mkImage "nix-homebase-core"  [ ];
-        homebase-cloud-image = mkImage "nix-homebase-cloud" cloudPkgs;
+        homebase-image = homebase;
       }
     );
 
     devShells = forAllSystems (system:
       let
         pkgs = import nixpkgs { inherit system; };
-        pyAi = pkgs.python3.withPackages (ps: [
-          ps.openai ps.anthropic ps.google-generativeai
-          ps.black ps.isort ps.ruff ps.yamllint
-        ]);
+        pyAi = pkgs.python3.withPackages (ps: [ ps.openai ps.anthropic ps.google-generativeai ps.black ps.isort ps.ruff ps.yamllint ]);
         corePkgs = with pkgs; [
           git gh curl jq nodejs python3 openssl wget coreutils moreutils gnused gnugrep gawk findutils
           tmux fzf ripgrep fd bat tree htop
@@ -145,13 +126,9 @@
           neovim direnv nix-direnv
           shellcheck shfmt nodePackages.prettier nodePackages.eslint nodePackages.markdownlint-cli stylua
           nodePackages.bash-language-server nodePackages.pyright nodePackages.typescript-language-server nodePackages.yaml-language-server nodePackages.vscode-langservers-extracted nodePackages.dockerfile-language-server-nodejs lua-language-server
-        ] ++ [ pyAi ]
-          ++ (pkgs.lib.optional (pkgs ? aider-chat) pkgs.aider-chat);
-
-        cloudPkgs = with pkgs; [ google-cloud-sdk awscli2 flyctl cloudflared nodePackages.wrangler ];
+        ] ++ [ pyAi ] ++ (pkgs.lib.optional (pkgs ? aider-chat) pkgs.aider-chat);
       in {
         default = devenv.lib.mkShell { inherit pkgs; modules = [{ languages.nix.enable = true; packages = corePkgs; }]; };
-        cloud   = devenv.lib.mkShell { inherit pkgs; modules = [{ languages.nix.enable = true; packages = corePkgs ++ cloudPkgs; }]; };
       }
     );
 

@@ -11,7 +11,7 @@
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
   "containerEnv": {
-    "NIX_CONFIG": "experimental-features = nix-command flakes"
+    "NIX_CONFIG": "experimental-features = nix-command flakes\naccept-flake-config = true"
   },
   "forwardPorts": [
     3000,
@@ -37,12 +37,79 @@
     8009,
     8010
   ],
-  "onCreateCommand": "echo '. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' >> \"$HOME/.bashrc\"; echo '. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' >> \"$HOME/.zshrc\"; echo 'eval \"$(direnv hook bash)\"' >> \"$HOME/.bashrc\"; echo 'eval \"$(direnv hook zsh)\"' >> \"$HOME/.zshrc\"; mkdir -p .vscode; nix build .#editor-settings && cp -f result/settings.json .vscode/settings.json; git config --global init.defaultBranch main; git config --global pull.rebase true; git config --global commit.gpgsign false; nix --extra-experimental-features 'nix-command flakes' develop . --command bash -lc 'echo nix-homebase ready' ",
+  "portsAttributes": {
+    "3000": {
+      "label": "svc-3000"
+    },
+    "3001": {
+      "label": "svc-3001"
+    },
+    "3002": {
+      "label": "svc-3002"
+    },
+    "3003": {
+      "label": "svc-3003"
+    },
+    "3004": {
+      "label": "svc-3004"
+    },
+    "3005": {
+      "label": "svc-3005"
+    },
+    "3006": {
+      "label": "svc-3006"
+    },
+    "3007": {
+      "label": "svc-3007"
+    },
+    "3008": {
+      "label": "svc-3008"
+    },
+    "3009": {
+      "label": "svc-3009"
+    },
+    "3010": {
+      "label": "svc-3010"
+    },
+    "8000": {
+      "label": "svc-8000"
+    },
+    "8001": {
+      "label": "svc-8001"
+    },
+    "8002": {
+      "label": "svc-8002"
+    },
+    "8003": {
+      "label": "svc-8003"
+    },
+    "8004": {
+      "label": "svc-8004"
+    },
+    "8005": {
+      "label": "svc-8005"
+    },
+    "8006": {
+      "label": "svc-8006"
+    },
+    "8007": {
+      "label": "svc-8007"
+    },
+    "8008": {
+      "label": "svc-8008"
+    },
+    "8009": {
+      "label": "svc-8009"
+    },
+    "8010": {
+      "label": "svc-8010"
+    }
+  },
+  "onCreateCommand": "mkdir -p \"$HOME/.config/nix\"; printf 'experimental-features = nix-command flakes\\naccept-flake-config = true\\n' > \"$HOME/.config/nix/nix.conf\"; echo 'eval \"$(direnv hook bash)\"' >> \"$HOME/.bashrc\"; echo 'eval \"$(direnv hook zsh)\"' >> \"$HOME/.zshrc\"; mkdir -p .vscode; nix build .#editor-settings && cp -f result/settings.json .vscode/settings.json; git config --global init.defaultBranch main; git config --global pull.rebase true; git config --global commit.gpgsign false; nix develop . --command bash -lc 'echo nix-homebase ready' ",
   "postStartCommand": "nix build .#editor-settings && cp -f result/settings.json .vscode/settings.json",
   "customizations": {
     "vscode": {
       "settings": {
-        "vim.enableNeovim": true,
         "files.trimTrailingWhitespace": true,
         "editor.formatOnSave": true,
         "[nix]": {
