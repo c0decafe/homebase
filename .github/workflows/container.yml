@@ -1,0 +1,56 @@
+name: container
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag'
+        required: false
+        default: 'latest'
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-25.05
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build core image (nix)
+        run: nix build .#homebase-core-image
+
+      - name: Load core image tar into Docker
+        run: docker load < result
+
+      - name: Tag & push core
+        run: |
+          IMAGE=ghcr.io/${{ github.repository }}:${{ github.event.inputs.tag || 'latest' }}-core
+          docker tag nix-homebase-core:latest "$IMAGE"
+          docker push "$IMAGE"
+
+      - name: Build cloud image (nix)
+        run: nix build .#homebase-cloud-image
+
+      - name: Load cloud image tar into Docker
+        run: docker load < result
+
+      - name: Tag & push cloud
+        run: |
+          IMAGE=ghcr.io/${{ github.repository }}:${{ github.event.inputs.tag || 'latest' }}-cloud
+          docker tag nix-homebase-cloud:latest "$IMAGE"
+          docker push "$IMAGE"

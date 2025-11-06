@@ -1,5 +1,5 @@
 {
-  "name": "Nix Homebase (Flakes + Neovim)",
+  "name": "nix-homebase",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
   "features": {
     "ghcr.io/devcontainers/features/nix:1": {},
@@ -7,19 +7,65 @@
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": true,
       "installOhMyZsh": true
-    }
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   },
   "containerEnv": {
     "NIX_CONFIG": "experimental-features = nix-command flakes"
   },
-  "onCreateCommand": "echo 'export PATH=\"$HOME/.nix-profile/bin:$PATH\"' >> \"$HOME/.bashrc\"; echo 'export PATH=\"$HOME/.nix-profile/bin:$PATH\"' >> \"$HOME/.zshrc\"; echo 'eval \"$(direnv hook bash)\"' >> \"$HOME/.bashrc\"; echo 'eval \"$(direnv hook zsh)\"' >> \"$HOME/.zshrc\"",
-  "postCreateCommand": "curl -L https://raw.githubusercontent.com/cachix/devenv/latest/install.sh | bash && direnv allow || true",
+  "forwardPorts": [
+    3000,
+    3001,
+    3002,
+    3003,
+    3004,
+    3005,
+    3006,
+    3007,
+    3008,
+    3009,
+    3010,
+    8000,
+    8001,
+    8002,
+    8003,
+    8004,
+    8005,
+    8006,
+    8007,
+    8008,
+    8009,
+    8010
+  ],
+  "onCreateCommand": "echo '. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' >> \"$HOME/.bashrc\"; echo '. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' >> \"$HOME/.zshrc\"; echo 'eval \"$(direnv hook bash)\"' >> \"$HOME/.bashrc\"; echo 'eval \"$(direnv hook zsh)\"' >> \"$HOME/.zshrc\"; mkdir -p .vscode; nix build .#editor-settings && cp -f result/settings.json .vscode/settings.json; git config --global init.defaultBranch main; git config --global pull.rebase true; git config --global commit.gpgsign false; nix --extra-experimental-features 'nix-command flakes' develop . --command bash -lc 'echo nix-homebase ready' ",
+  "postStartCommand": "nix build .#editor-settings && cp -f result/settings.json .vscode/settings.json",
   "customizations": {
     "vscode": {
       "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash",
-        "vscode-neovim.neovimExecutablePaths.linux": "/usr/bin/nvim",
-        "vim.enableNeovim": true
+        "vim.enableNeovim": true,
+        "files.trimTrailingWhitespace": true,
+        "editor.formatOnSave": true,
+        "[nix]": {
+          "editor.defaultFormatter": "jnoortheen.nix-ide"
+        },
+        "[json]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[javascript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[typescript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.black-formatter"
+        },
+        "[shellscript]": {
+          "editor.defaultFormatter": "foxundermoon.shell-format"
+        },
+        "[yaml]": {
+          "editor.defaultFormatter": "redhat.vscode-yaml"
+        }
       },
       "extensions": [
         "tamasfe.even-better-toml",
@@ -27,8 +73,23 @@
         "mkhl.direnv",
         "asvetliakov.vscode-neovim",
         "VSpaceCode.whichkey",
-        "ms-vscode-remote.remote-containers"
+        "ms-vscode-remote.remote-containers",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "ms-python.python",
+        "ms-python.black-formatter",
+        "ms-python.isort",
+        "charliermarsh.ruff",
+        "redhat.vscode-yaml",
+        "DavidAnson.vscode-markdownlint",
+        "foxundermoon.shell-format",
+        "mads-hartmann.bash-ide-vscode",
+        "ms-azuretools.vscode-docker"
       ]
     }
+  },
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb"
   }
 }
