@@ -3,7 +3,6 @@ set -euo pipefail
 
 echo "[bootstrap] start"
 
-# 1) Nix config (flakes only)
 mkdir -p "$HOME/.config/nix"
 cat > "$HOME/.config/nix/nix.conf" <<'EOF'
 experimental-features = nix-command flakes
@@ -11,7 +10,6 @@ substituters = https://cache.nixos.org/
 trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
 EOF
 
-# 2) direnv entry + shell hooks
 [[ -f ".envrc" ]] || echo "use flake" > .envrc
 
 for sh in bash zsh; do
@@ -24,7 +22,6 @@ for sh in bash zsh; do
   grep -q 'direnv hook' "$rc" 2>/dev/null || echo "$hook" >> "$rc"
 done
 
-# 3) VS Code settings copy with sync guard
 mkdir -p .vscode
 SRC="/opt/homebase/editor-settings.json"
 if [[ ! -f "$SRC" ]]; then
@@ -33,7 +30,6 @@ if [[ ! -f "$SRC" ]]; then
   SRC="$(readlink -f .editor-settings)"
 fi
 
-# compute a simple sync hash over devcontainer.json + src settings
 HASHDIR=".devcontainer"
 HASHFILE="$HASHDIR/.sync.hash"
 mkdir -p "$HASHDIR"

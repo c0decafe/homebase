@@ -1,8 +1,8 @@
 {
-  description = "nix-homebase";
+  description = "nix-homebase (slim)";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable-small";
     systems.url = "github:nix-systems/default";
     devenv.url = "github:cachix/devenv";
     devenv.inputs.nixpkgs.follows = "nixpkgs";
@@ -21,15 +21,16 @@
 
         pyAi = pkgs.python3.withPackages (ps: [ ps.openai ps.anthropic ps.google-generativeai ]);
         toolset = with pkgs; [
+          bash coreutils findutils git curl wget
           ripgrep fd bat tmux htop mtr traceroute whois lsof nmap socat tcpdump bind.dnsutils
           rclone rsync
-          google-cloud-sdk awscli2 flyctl cloudflared nodePackages.wrangler
           neovim direnv nix-direnv shellcheck shfmt stylua marksman
           nodePackages.bash-language-server
           nodePackages.typescript-language-server
           nodePackages.yaml-language-server
           nodePackages.vscode-langservers-extracted
           lua-language-server
+          nodePackages.wrangler
         ] ++ [ pyAi ];
 
         settingsJson = builtins.toJSON {
@@ -51,10 +52,10 @@
           install -Dm0644 ${editorSettings} $out/opt/homebase/editor-settings.json
         '';
 
-        image = pkgs.dockerTools.buildImage {
+        image = pkgs.dockerTools.streamLayeredImage {
           name = "nix-homebase";
           tag  = "latest";
-          copyToRoot = [ rootfs editorSettingsRoot ];
+          contents = [ rootfs editorSettingsRoot ];
           config = {
             WorkingDir = "/workspace";
             Cmd = [ "${pkgs.bash}/bin/bash" "-l" ];
@@ -75,15 +76,16 @@
         };
         pyAi = pkgs.python3.withPackages (ps: [ ps.openai ps.anthropic ps.google-generativeai ]);
         toolset = with pkgs; [
+          bash coreutils findutils git curl wget
           ripgrep fd bat tmux htop mtr traceroute whois lsof nmap socat tcpdump bind.dnsutils
           rclone rsync
-          google-cloud-sdk awscli2 flyctl cloudflared nodePackages.wrangler
           neovim direnv nix-direnv shellcheck shfmt stylua marksman
           nodePackages.bash-language-server
           nodePackages.typescript-language-server
           nodePackages.yaml-language-server
           nodePackages.vscode-langservers-extracted
           lua-language-server
+          nodePackages.wrangler
         ] ++ [ pyAi ];
       in {
         default = devenv.lib.mkShell { inherit pkgs; modules = [{ languages.nix.enable = true; packages = toolset; }]; };
