@@ -37,7 +37,7 @@
         pyAi = pkgs.python3.withPackages (ps: [ ps.openai ps.anthropic ps.google-generativeai ]);
 
         extraTools = with pkgs; [
-          ripgrep fd bat tmux htop mtr traceroute whois lsof nmap socat tcpdump bind
+          ripgrep fd bat tmux htop mtr traceroute whois lsof nmap socat tcpdump bind.dnsutils
           rclone rsync
           google-cloud-sdk awscli2 flyctl cloudflared nodePackages.wrangler
           neovim direnv nix-direnv shellcheck shfmt stylua marksman
@@ -73,7 +73,7 @@
           modules = [{
             languages.nix.enable = true;
             packages = with pkgs; [
-              ripgrep fd bat tmux htop mtr traceroute whois lsof nmap socat tcpdump bind
+              ripgrep fd bat tmux htop mtr traceroute whois lsof nmap socat tcpdump bind.dnsutils
               rclone rsync
               google-cloud-sdk awscli2 flyctl cloudflared nodePackages.wrangler
               neovim direnv nix-direnv shellcheck shfmt stylua marksman

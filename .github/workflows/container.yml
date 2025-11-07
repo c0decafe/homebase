@@ -16,6 +16,13 @@ jobs:
         uses: cachix/install-nix-action@v27
         with:
           nix_path: nixpkgs=channel:nixos-25.05
+      - name: Configure Nix (flakes + unfree for CI)
+        run: |
+          mkdir -p ~/.config/nix
+          cat > ~/.config/nix/nix.conf <<'EOF'
+          experimental-features = nix-command flakes
+          allow-unfree = true
+          EOF
       - name: Build image (nix)
         run: nix build -L .#homebase-image --out-link img
       - name: Login to GHCR

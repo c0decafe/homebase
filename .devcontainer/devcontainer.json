@@ -57,12 +57,18 @@
         "asvetliakov.vscode-neovim",
         "yzhang.markdown-all-in-one",
         "DavidAnson.vscode-markdownlint",
+        "bierner.markdown-preview-github-styles",
         "esbenp.prettier-vscode",
         "dbaeumer.vscode-eslint",
         "stylelint.vscode-stylelint",
         "ms-vscode.vscode-typescript-next",
+        "ms-python.python",
+        "bradlc.vscode-tailwindcss",
+        "redhat.vscode-yaml",
+        "vue.volar",
         "cloudflare.cloudflare-workers",
-        "ms-azuretools.vscode-docker"
+        "ms-azuretools.vscode-docker",
+        "github.copilot"
       ],
       "settings": {
         "files.trimTrailingWhitespace": true,

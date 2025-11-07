@@ -37,7 +37,7 @@ It gives you a full developer “home base” image that works the same everywhe
 | Category | Tools |
 |-----------|-------|
 | 🧱 System & Shell | `bash`, `zsh`, `tmux`, `htop`, `fd`, `ripgrep`, `bat`, `lsof`, `mtr`, `traceroute`, `whois` |
-| 🌐 Networking & Sync | `curl`, `rsync`, `rclone`, `socat`, `tcpdump`, `bind` tools |
+| 🌐 Networking & Sync | `curl`, `rsync`, `rclone`, `socat`, `tcpdump`, `bind` tools (`bind.dnsutils`) |
 | ☁️ Cloud SDKs | `google-cloud-sdk`, `awscli2`, `flyctl`, `cloudflared`, `wrangler` |
 | 🧠 AI SDKs | `openai`, `anthropic`, `google-generativeai` (via `python3.withPackages`) |
 | ⚙️ Development | `nodejs`, `python3`, `nix-direnv`, `devenv`, `neovim`, `direnv` |
@@ -49,7 +49,7 @@ It gives you a full developer “home base” image that works the same everywhe
 
 - Ports exposed: **3000–3010** and **8000–8010**
 - VS Code extensions preloaded:
-  - `Vim`, `Neovim`, `Markdown`, `Prettier`, `ESLint`, `Stylelint`, `Cloudflare Workers`, `Docker`
+  - `Vim`, `Neovim`, `Markdown`, `Prettier`, `ESLint`, `Stylelint`, `Cloudflare Workers`, `Docker`, `Tailwind`, `YAML`, `Volar`, `Copilot`, `Python`
 - DevContainer features enabled:
   - `common-utils`, `git`, `gh`, `node`, `python`, `docker-in-docker`, `nix`
 
