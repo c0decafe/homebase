@@ -88,7 +88,6 @@
               google-cloud-sdk awscli2 flyctl cloudflared nodePackages.wrangler
               neovim direnv nix-direnv shellcheck shfmt stylua marksman
               nodePackages.bash-language-server
-              nodePackages.pyright
               nodePackages.typescript-language-server
               nodePackages.yaml-language-server
               nodePackages.vscode-langservers-extracted
