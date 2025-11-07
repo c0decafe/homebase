@@ -1,3 +1,1 @@
-# nix-homebase
-
-Single nix-enabled image with template and flake dev env.
+# nix-homebase\n\nDevContainer-first with Nix fallback.\n

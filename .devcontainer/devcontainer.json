@@ -1,17 +1,27 @@
 {
   "name": "nix-homebase",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "image": "ghcr.io/c0decafe/homebase:latest",
   "features": {
-    "ghcr.io/devcontainers/features/nix:1": {},
-    "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": true,
       "installOhMyZsh": true
     },
-    "ghcr.io/devcontainers/features/github-cli:1": {}
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "moby": true
+    },
+    "ghcr.io/devcontainers/features/nix:1": {}
   },
   "containerEnv": {
-    "NIX_CONFIG": "experimental-features = nix-command flakes\naccept-flake-config = true"
+    "HOMEBASE_USE_NIX_FALLBACK": "auto"
   },
   "forwardPorts": [
     3000,
@@ -105,58 +115,30 @@
       "label": "svc-8010"
     }
   },
-  "onCreateCommand": "mkdir -p \"$HOME/.config/nix\"; printf 'experimental-features = nix-command flakes\\naccept-flake-config = true\\n' > \"$HOME/.config/nix/nix.conf\"; echo 'eval \"$(direnv hook bash)\"' >> \"$HOME/.bashrc\"; echo 'eval \"$(direnv hook zsh)\"' >> \"$HOME/.zshrc\"; mkdir -p .vscode; nix build .#editor-settings && cp -f result/settings.json .vscode/settings.json; git config --global init.defaultBranch main; git config --global pull.rebase true; git config --global commit.gpgsign false; nix develop . --command bash -lc 'echo nix-homebase ready' ",
-  "postStartCommand": "nix build .#editor-settings && cp -f result/settings.json .vscode/settings.json",
+  "onCreateCommand": "./.devcontainer/bootstrap.sh",
   "customizations": {
     "vscode": {
+      "extensions": [
+        "jnoortheen.nix-ide",
+        "mkhl.direnv",
+        "vscodevim.vim",
+        "asvetliakov.vscode-neovim",
+        "yzhang.markdown-all-in-one",
+        "DavidAnson.vscode-markdownlint",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "stylelint.vscode-stylelint",
+        "ms-vscode.vscode-typescript-next",
+        "cloudflare.cloudflare-workers",
+        "ms-azuretools.vscode-docker"
+      ],
       "settings": {
         "files.trimTrailingWhitespace": true,
         "editor.formatOnSave": true,
         "[nix]": {
           "editor.defaultFormatter": "jnoortheen.nix-ide"
-        },
-        "[json]": {
-          "editor.defaultFormatter": "esbenp.prettier-vscode"
-        },
-        "[javascript]": {
-          "editor.defaultFormatter": "esbenp.prettier-vscode"
-        },
-        "[typescript]": {
-          "editor.defaultFormatter": "esbenp.prettier-vscode"
-        },
-        "[python]": {
-          "editor.defaultFormatter": "ms-python.black-formatter"
-        },
-        "[shellscript]": {
-          "editor.defaultFormatter": "foxundermoon.shell-format"
-        },
-        "[yaml]": {
-          "editor.defaultFormatter": "redhat.vscode-yaml"
         }
-      },
-      "extensions": [
-        "tamasfe.even-better-toml",
-        "jnoortheen.nix-ide",
-        "mkhl.direnv",
-        "asvetliakov.vscode-neovim",
-        "VSpaceCode.whichkey",
-        "ms-vscode-remote.remote-containers",
-        "esbenp.prettier-vscode",
-        "dbaeumer.vscode-eslint",
-        "ms-python.python",
-        "ms-python.black-formatter",
-        "ms-python.isort",
-        "charliermarsh.ruff",
-        "redhat.vscode-yaml",
-        "DavidAnson.vscode-markdownlint",
-        "foxundermoon.shell-format",
-        "mads-hartmann.bash-ide-vscode",
-        "ms-azuretools.vscode-docker"
-      ]
+      }
     }
-  },
-  "hostRequirements": {
-    "cpus": 4,
-    "memory": "8gb"
   }
 }
