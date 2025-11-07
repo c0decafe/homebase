@@ -4,7 +4,7 @@ set -euo pipefail
 STAMP=".devcontainer/.bootstrap.done"
 [[ -f "$STAMP" ]] && { echo "[bootstrap] already completed"; exit 0; }
 
-echo "[bootstrap] start: devcontainer features first, nix fallback as needed"
+echo "[bootstrap] start"
 
 mkdir -p "$HOME/.config/nix"
 cat > "$HOME/.config/nix/nix.conf" <<'EOF'
@@ -17,34 +17,21 @@ EOF
 [[ -f ".envrc" ]] || echo "use flake" > .envrc
 
 mkdir -p .vscode
-if [[ ! -f .vscode/settings.json && -f /opt/homebase/editor-settings.json ]]; then
-  cp -f /opt/homebase/editor-settings.json .vscode/settings.json
+SRC="/opt/homebase/editor-settings.json"
+if [[ ! -f "$SRC" ]]; then
+  echo "[bootstrap] no baked editor-settings.json; building from flake"
+  nix build -L .#editor-settings --out-link .editor-settings
+  SRC="$(readlink -f .editor-settings)"
 fi
 
-USE="${HOMEBASE_USE_NIX_FALLBACK:-auto}"
+cp -f "$SRC" .vscode/settings.json
+echo "[bootstrap] copied editor settings -> .vscode/settings.json"
 
-has_bin() { command -v "$1" >/dev/null 2>&1; }
-
-BASIC_TOOLS=(git gh node npm python3 pip docker)
-BASICS_OK=true
-for t in "${BASIC_TOOLS[@]}"; do
-  if ! has_bin "$t"; then BASICS_OK=false; break; fi
+for TARGET in   "$HOME/.vscode-server/data/Machine/settings.json"   "$HOME/.config/Code/User/settings.json"
+do
+  mkdir -p "$(dirname "$TARGET")"
+  cp -f "$SRC" "$TARGET" || true
 done
-
-should_warm_nix=false
-case "$USE" in
-  always) should_warm_nix=true ;;
-  never)  should_warm_nix=false ;;
-  auto)   $BASICS_OK || should_warm_nix=true ;;
-  *)      $BASICS_OK || should_warm_nix=true ;;
-esac
-
-if $should_warm_nix; then
-  echo "[bootstrap] warming nix dev shell (fallback path)"
-  nix develop -c true
-else
-  echo "[bootstrap] devcontainer features satisfied basics; skipping nix warmup"
-fi
 
 date > "$STAMP"
 echo "[bootstrap] complete"

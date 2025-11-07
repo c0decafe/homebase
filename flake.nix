@@ -30,7 +30,7 @@
 
         editorSettings = pkgs.writeTextFile {
           name = "editor-settings";
-          destination = "/opt/homebase/editor-settings.json";
+          destination = "/editor-settings.json";
           text = settingsJson;
         };
 
@@ -49,10 +49,20 @@
           lua-language-server
         ] ++ [ pyAi ];
 
-        image = pkgs.dockerTools.buildLayeredImage {
+        rootfs = pkgs.buildEnv {
+          name = "nix-homebase-rootfs";
+          paths = extraTools;
+        };
+
+        editorSettingsRoot = pkgs.runCommand "editor-settings-root" { } ''
+          mkdir -p $out/opt/homebase
+          cp ${editorSettings} $out/opt/homebase/editor-settings.json
+        '';
+
+        image = pkgs.dockerTools.buildImage {
           name = "nix-homebase";
-          tag = "latest";
-          contents = extraTools ++ [ editorSettings ];
+          tag  = "latest";
+          copyToRoot = [ rootfs editorSettingsRoot ];
           config = {
             WorkingDir = "/workspace";
             Cmd = [ "${pkgs.bash}/bin/bash" "-l" ];
