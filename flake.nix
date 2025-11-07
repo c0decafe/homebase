@@ -16,6 +16,19 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
+        pyAi = pkgs.python3.withPackages (ps: [ ps.openai ps.anthropic ps.google-generativeai ]);
+        toolset = with pkgs; [
+          ripgrep fd bat tmux htop mtr traceroute whois lsof nmap socat tcpdump bind.dnsutils
+          rclone rsync
+          google-cloud-sdk awscli2 flyctl cloudflared nodePackages.wrangler
+          neovim direnv nix-direnv shellcheck shfmt stylua marksman
+          nodePackages.bash-language-server
+          nodePackages.typescript-language-server
+          nodePackages.yaml-language-server
+          nodePackages.vscode-langservers-extracted
+          lua-language-server
+        ] ++ [ pyAi ];
+
         settingsJson = builtins.toJSON {
           "direnv.path.executable" = "${pkgs.direnv}/bin/direnv";
           "vscode-neovim.neovimExecutablePaths.linux" = "${pkgs.neovim}/bin/nvim";
@@ -34,24 +47,7 @@
           text = settingsJson;
         };
 
-        pyAi = pkgs.python3.withPackages (ps: [ ps.openai ps.anthropic ps.google-generativeai ]);
-
-        extraTools = with pkgs; [
-          ripgrep fd bat tmux htop mtr traceroute whois lsof nmap socat tcpdump bind.dnsutils
-          rclone rsync
-          google-cloud-sdk awscli2 flyctl cloudflared nodePackages.wrangler
-          neovim direnv nix-direnv shellcheck shfmt stylua marksman
-          nodePackages.bash-language-server
-          nodePackages.typescript-language-server
-          nodePackages.yaml-language-server
-          nodePackages.vscode-langservers-extracted
-          lua-language-server
-        ] ++ [ pyAi ];
-
-        rootfs = pkgs.buildEnv {
-          name = "nix-homebase-rootfs";
-          paths = extraTools;
-        };
+        rootfs = pkgs.buildEnv { name = "nix-homebase-rootfs"; paths = toolset; };
 
         editorSettingsRoot = pkgs.runCommand "editor-settings-root" { } ''
           mkdir -p $out/opt/homebase
@@ -81,17 +77,20 @@
           inherit pkgs;
           modules = [{
             languages.nix.enable = true;
-            packages = with pkgs; [
-              ripgrep fd bat tmux htop mtr traceroute whois lsof nmap socat tcpdump bind.dnsutils
-              rclone rsync
-              google-cloud-sdk awscli2 flyctl cloudflared nodePackages.wrangler
-              neovim direnv nix-direnv shellcheck shfmt stylua marksman
-              nodePackages.bash-language-server
-              nodePackages.typescript-language-server
-              nodePackages.yaml-language-server
-              nodePackages.vscode-langservers-extracted
-              lua-language-server
-            ];
+            packages = let
+              pyAi = pkgs.python3.withPackages (ps: [ ps.openai ps.anthropic ps.google-generativeai ]);
+              toolset = with pkgs; [
+                ripgrep fd bat tmux htop mtr traceroute whois lsof nmap socat tcpdump bind.dnsutils
+                rclone rsync
+                google-cloud-sdk awscli2 flyctl cloudflared nodePackages.wrangler
+                neovim direnv nix-direnv shellcheck shfmt stylua marksman
+                nodePackages.bash-language-server
+                nodePackages.typescript-language-server
+                nodePackages.yaml-language-server
+                nodePackages.vscode-langservers-extracted
+                lua-language-server
+              ] ++ [ pyAi ];
+            in toolset;
           }];
         };
       }

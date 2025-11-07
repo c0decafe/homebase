@@ -57,7 +57,6 @@
         "dbaeumer.vscode-eslint",
         "stylelint.vscode-stylelint",
         "ms-vscode.vscode-typescript-next",
-        "ms-python.python",
         "redhat.vscode-yaml",
         "ms-azuretools.vscode-docker",
         "cloudflare.cloudflare-workers"
