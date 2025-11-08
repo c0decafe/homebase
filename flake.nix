@@ -1,14 +1,15 @@
 {
-  description = "homebase — clean & DRY (with skopeo)";
+  description = "homebase — nix2container";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable-small";
     systems.url = "github:nix-systems/default";
     devenv.url = "github:cachix/devenv";
     devenv.inputs.nixpkgs.follows = "nixpkgs";
+    n2c.url = "github:nlewo/nix2container";
   };
 
-  outputs = { self, nixpkgs, systems, devenv, ... }:
+  outputs = { self, nixpkgs, systems, devenv, n2c, ... }:
   let
     forAll = nixpkgs.lib.genAttrs (import systems);
     mkPkgs = system: import nixpkgs { inherit system; config.allowUnfree = true; };
@@ -38,16 +39,29 @@
   in {
     packages = forAll (system:
       let
-        pkgs = mkPkgs system;
+        pkgs   = mkPkgs system;
+        n2cLib = n2c.lib.${system};
         settings = mkEditorSettings pkgs;
-        rootfs = pkgs.buildEnv { name = "homebase-rootfs"; paths = toolset pkgs; };
-        settingsRoot = pkgs.runCommand "editor-settings-root" {} ''
-          install -Dm0644 ${settings} $out/opt/homebase/editor-settings.json
-        '';
-        image = pkgs.dockerTools.streamLayeredImage {
-          name = "homebase";
+
+        rootfs = n2cLib.layer {
+          name = "rootfs";
+          contents = toolset pkgs;
+        };
+
+        settingsLayer = n2cLib.layer {
+          name = "editor-settings";
+          contents = [
+            (pkgs.runCommand "editor-settings-root" {} ''
+              install -Dm0644 ${settings} $out/opt/homebase/editor-settings.json
+            '')
+          ];
+        };
+
+        image = n2cLib.buildImage {
+          name = "ghcr.io/c0decafe/homebase";
           tag  = "latest";
-          contents = [ rootfs settingsRoot ];
+          maxLayers = 64;
+          layers = [ rootfs settingsLayer ];
           config = {
             WorkingDir = "/workspace";
             Cmd = [ "${pkgs.bash}/bin/bash" "-l" ];
@@ -59,13 +73,30 @@
             };
           };
         };
-      in { homebase = image; editor-settings = settings; }
+      in
+      { homebase = image; editor-settings = settings; }
+    );
+
+    apps = forAll (system:
+      let n2cLib = n2c.lib.${system};
+      in {
+        push = {
+          type = "app";
+          program = toString (n2cLib.copyToRegistry {
+            image = self.packages.${system}.homebase;
+            destination = "docker://ghcr.io/c0decafe/homebase:latest";
+          });
+        };
+      }
     );
 
     devShells = forAll (system:
       let pkgs = mkPkgs system;
       in {
-        default = devenv.lib.mkShell { inherit pkgs; modules = [{ languages.nix.enable = true; packages = toolset pkgs; }]; };
+        default = devenv.lib.mkShell {
+          inherit pkgs;
+          modules = [{ languages.nix.enable = true; packages = toolset pkgs; }];
+        };
       }
     );
 

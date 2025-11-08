@@ -11,7 +11,6 @@ trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDS
 EOF
 
 [[ -f ".envrc" ]] || echo "use flake" > .envrc
-
 for sh in bash zsh; do
   rc="$HOME/.${sh}rc"
   if [[ "$sh" == "bash" ]]; then
@@ -21,13 +20,12 @@ for sh in bash zsh; do
   fi
   grep -q 'direnv hook' "$rc" 2>/dev/null || echo "$hook" >> "$rc"
 done
-
 command -v direnv >/dev/null 2>&1 && direnv allow || true
 
 mkdir -p .vscode
 SRC="/opt/homebase/editor-settings.json"
 if [[ ! -f "$SRC" ]]; then
-  echo "[bootstrap] no baked editor-settings.json; building from flake"
+  echo "[bootstrap] building editor-settings from flake"
   nix build -L .#editor-settings --no-write-lock-file --out-link .editor-settings
   SRC="$(readlink -f .editor-settings)"
 fi

@@ -1,12 +1,11 @@
-# 🏠 homebase — clean, DRY, slim
+# 🏠 homebase — nix2container edition
 
-Applied:
-- Minimal ports: **3000, 5173, 8000**
-- DevContainer features trimmed (Nix + git + common utils + Docker only)
-- Dropped OpenAI/Anthropic/Google-gen libs and Python tooling
-- DRY helpers (`toolset`, `mkEditorSettings`)
-- Layered image (`streamLayeredImage`) with OCI labels
-- Skopeo push to GHCR; concurrency + cleanup
-- Bootstrap merges VS Code settings with `jq` and auto-`direnv allow`
+- Builds with **nix2container** (no Docker daemon, no tarballs) and pushes via Skopeo.
+- DRY toolset is shared across the image and devShell (Wrangler, skopeo, LSPs, CLI basics).
+- DevContainer: minimal features; forwards **3000 / 5173 / 8000**.
+- Bootstrap merges VS Code settings with `jq`, adds direnv hooks, first-run `direnv allow`.
+- CI: `nix build .#homebase` + `nix run .#push` to publish to `ghcr.io/c0decafe/homebase:latest`.
 
-Build/push target: `ghcr.io/c0decafe/homebase:latest`
+## Local usage
+- Open the folder in VS Code / Codespaces. The container uses the published image and runs bootstrap.
+- Edit `.vscode/settings.json` freely; defaults are merged, not overwritten.

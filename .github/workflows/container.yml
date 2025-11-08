@@ -29,14 +29,20 @@ jobs:
           experimental-features = nix-command flakes
           EOF
 
-      - name: Build (capture out path; no lockfile)
-        run: echo IMAGE_PATH=$(nix build -L --no-write-lock-file .#homebase --print-out-paths) >> $GITHUB_ENV
-
-      - name: Push with skopeo (no docker load)
+      - name: Login to GHCR (skopeo-compatible)
         run: |
-          nix shell -L --inputs-from . nixpkgs#skopeo --command             skopeo copy --retry-times 3 --insecure-policy               --dest-creds "c0decafe:${{ secrets.GITHUB_TOKEN }}"               "docker-archive:${IMAGE_PATH}"               "docker://ghcr.io/c0decafe/homebase:latest"
+          mkdir -p ~/.docker
+          AUTH=$(printf "%s:%s" "c0decafe" "${{ secrets.GITHUB_TOKEN }}" | base64 -w0)
+          printf '{ "auths": { "ghcr.io": { "auth": "%s" } } }
+' "$AUTH" > ~/.docker/config.json
 
-      - name: Clean up Nix store and workspace
+      - name: Build image (pure Nix)
+        run: nix build -L --no-write-lock-file .#homebase
+
+      - name: Push image (nix2container -> GHCR)
+        run: nix run -L --no-write-lock-file .#push
+
+      - name: Cleanup
         run: |
           nix store gc || true
           df -h || true
