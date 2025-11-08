@@ -21,7 +21,7 @@ jobs:
         uses: cachix/install-nix-action@v27
         with:
           # small channel is fine for the runner; your flake pins nixos-25.05-small
-          nix_path: nixpkgs=channel:nixos-unstable-small
+          nix_path: nixpkgs=channel:nixos-25.05-small
 
       - name: Enable flakes
         run: |
@@ -43,7 +43,7 @@ jobs:
       - name: Push to GHCR (latest)
         run: |
           nix run -L --no-write-lock-file .#homebase.copyToRegistry -- \
-            --destination docker://ghcr.io/c0decafe/homebase:latest
+            docker://ghcr.io/c0decafe/homebase:latest
 
       - name: Disk usage (debug)
         if: always()
