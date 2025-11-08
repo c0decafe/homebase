@@ -70,7 +70,6 @@ Defined in `flake.nix`:
 - **Environment defaults** - PATH set to `/bin`, `EDITOR=nvim`, CA certificates for git/curl/nix,
   and `initializeNixDatabase = true` so `nix` works inside the container.
 - **Global nix config** - `/etc/nix/nix.conf` enables flakes everywhere (Codespaces, terminals, scripts) without per-user tweaks.
-- **Lean base image** - builds on top of `debian:bookworm-slim`, with everything else supplied by the Nix store layers for reproducibility.
 
 To add tools, extend the `tools` list or include additional layers via `buildLayer`.
 
