@@ -24,7 +24,24 @@
       ],
       "settings": {
         "files.trimTrailingWhitespace": true,
-        "editor.formatOnSave": true
+        "editor.formatOnSave": true,
+        "editor.minimap.enabled": false,
+        "editor.cursorBlinking": "solid",
+        "editor.renderWhitespace": "boundary",
+        "editor.rulers": [
+          80
+        ],
+        "editor.guides.bracketPairsHorizontal": "active",
+        "editor.lineNumbers": "relative",
+        "editor.smoothScrolling": true,
+        "vim.enableNeovim": true,
+        "vim.useSystemClipboard": true,
+        "vim.statusBarColorControl": true,
+        "workbench.startupEditor": "none",
+        "workbench.tips.enabled": false,
+        "workbench.welcomePage.walkthroughs.openOnInstall": false,
+        "extensions.ignoreRecommendations": true,
+        "telemetry.telemetryLevel": "off"
       }
     }
   }
