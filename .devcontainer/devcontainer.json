@@ -9,15 +9,8 @@
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "moby": true
-    },
-    "ghcr.io/devcontainers/features/nix:1": {}
+    }
   },
-  "onCreateCommand": "./.devcontainer/bootstrap.sh",
-  "forwardPorts": [
-    3000,
-    5173,
-    8000
-  ],
   "customizations": {
     "vscode": {
       "extensions": [

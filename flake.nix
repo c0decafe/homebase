@@ -82,6 +82,17 @@ sudo:x:27:vscode
 EOF
             echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/vscode
             chmod 0440 $out/etc/sudoers.d/vscode
+
+            cat >> $out/home/vscode/.bashrc <<'EOF'
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv hook bash)"
+fi
+EOF
+            cat >> $out/home/vscode/.zshrc <<'EOF'
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv hook zsh)"
+fi
+EOF
           '';
           # Ownership + sane modes (no 0777) applied at layer creation
           perms = [
@@ -100,13 +111,23 @@ EOF
           ];
         };
 
+        nixConfigLayer = buildLayer {
+          copyToRoot = pkgs.runCommand "homebase-nix-config" {} ''
+            install -Dm0644 ${pkgs.writeText "nix.conf" ''
+              experimental-features = nix-command flakes
+              substituters = https://cache.nixos.org/
+              trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+            ''} $out/etc/nix/nix.conf
+          '';
+        };
+
       in rec {
         packages.editor-settings = vscodeMachineSettings;
 
         packages.homebase = buildImage {
           name   = "homebase";
           tag    = "latest";
-          layers = [ baseLayer nssLayer usersLayer vscodeLayer ];
+          layers = [ baseLayer nssLayer usersLayer vscodeLayer nixConfigLayer ];
 
           config = {
             Env = [
