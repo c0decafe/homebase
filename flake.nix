@@ -30,6 +30,7 @@
           nixVersions.stable
           sudo
           iproute2 iputils traceroute mtr whois mosh lsof
+          codex
         ];
 
         # VS Code Machine settings for vscode (absolute store paths to nvim/direnv)
