@@ -12,7 +12,10 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
-        # Minimal base toolset for Codespaces
+        # ✅ Use nix2container *library* (not the package derivation)
+        n2c = nix2container.lib.${system};
+
+        # Minimal, practical toolset
         tools = with pkgs; [
           bashInteractive coreutils findutils gnugrep gawk
           git openssh curl wget
@@ -22,18 +25,18 @@
           gh wrangler
           nixVersions.stable
           sudo
+          # small net diag set
           iproute2 iputils traceroute mtr whois mosh lsof
         ];
 
-        n2c = nix2container.packages.${system}.nix2container;
-
+        # Flatten tools into /bin for stable absolute paths in VS Code
         rootfs = pkgs.buildEnv {
           name = "homebase-root";
           paths = tools;
           pathsToLink = [ "/bin" "/share" ];
         };
 
-        # Simple NSS config
+        # Simple NSS config (no fakeNss)
         nssLayer = pkgs.runCommand "homebase-nss" {} ''
           mkdir -p $out/etc
           cat > $out/etc/nsswitch.conf <<'EOF'
@@ -50,7 +53,7 @@ netgroup: files
 EOF
         '';
 
-        # Add vscode user and own /workspaces
+        # vscode user (uid/gid 1000), sudo, and ownership of /workspaces
         usersLayer = pkgs.runCommand "homebase-users" {} ''
           mkdir -p $out/etc $out/etc/sudoers.d
           mkdir -p $out/home/vscode $out/workspaces
@@ -71,7 +74,7 @@ EOF
           chown -R 1000:1000 $out/workspaces
         '';
 
-        # VSCode Machine settings for vscode user (absolute paths)
+        # VS Code Machine settings for *vscode* with absolute Nix paths (only what we ship)
         vscodeMachineSettings = pkgs.writeText "vscode-machine-settings.json" (builtins.toJSON {
           "direnv.path.executable" = "${pkgs.direnv}/bin/direnv";
           "vscode-neovim.neovimExecutablePaths.linux" = "${pkgs.neovim}/bin/nvim";
@@ -84,6 +87,7 @@ EOF
           chown -R 1000:1000 $out/home/vscode
         '';
       in rec {
+        # -------- OCI image via nix2container --------
         packages.homebase = n2c.buildImage {
           name = "homebase";
           tag  = "latest";
@@ -101,6 +105,7 @@ EOF
               "EDITOR=nvim"
               "PAGER=less"
               "LC_ALL=C"
+              # unified TLS trust for git/curl/nix
               "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               "GIT_SSL_CAINFO=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
@@ -110,11 +115,13 @@ EOF
             User = "vscode";
           };
 
+          # Let nix work in the running container
           initializeNixDatabase = true;
         };
 
         packages.default = packages.homebase;
 
+        # Optional devShell for local hacking
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [ nixVersions.stable git jq ];
         };
