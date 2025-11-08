@@ -42,7 +42,7 @@ jobs:
 
       - name: Copy to Docker registry (GHCR) via nix2container
         run: |
-          nix run .#homebase.copyToRegistry -- ghcr.io/c0decafe/homebase:latest
+          nix run .#homebase.copyTo -- docker://ghcr.io/c0decafe/homebase:latest
 
       - name: Disk usage (debug)
         if: always()
