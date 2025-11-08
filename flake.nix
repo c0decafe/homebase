@@ -12,8 +12,12 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
-        # IMPORTANT: import nix2container's default.nix with our pkgs
+        # Use nix2container exactly as provided by your pin:
+        # it exports a set whose functions live under `.nix2container`
         n2c = import nix2container { inherit pkgs; };
+
+        buildImage = n2c.nix2container.buildImage;
+        buildLayer = n2c.nix2container.buildLayer;
 
         # ---- Base tools (lean) ----
         tools = with pkgs; [
@@ -28,7 +32,7 @@
           iproute2 iputils traceroute mtr whois mosh lsof
         ];
 
-        # VS Code Machine settings for vscode (absolute store paths)
+        # VS Code Machine settings for vscode (absolute store paths to nvim/direnv)
         vscodeMachineSettings = pkgs.writeText "vscode-machine-settings.json" (builtins.toJSON {
           "direnv.path.executable" = "${pkgs.direnv}/bin/direnv";
           "vscode-neovim.neovimExecutablePaths.linux" = "${pkgs.neovim}/bin/nvim";
@@ -36,7 +40,7 @@
         });
 
         # ---- Layers ----
-        baseLayer = n2c.buildLayer {
+        baseLayer = buildLayer {
           copyToRoot = pkgs.buildEnv {
             name = "homebase-base";
             paths = tools;
@@ -44,8 +48,8 @@
           };
         };
 
-        nssLayer = n2c.buildLayer {
-          copyToRoot = pkgs.runCommand "homebase-nss" { } ''
+        nssLayer = buildLayer {
+          copyToRoot = pkgs.runCommand "homebase-nss" {} ''
             mkdir -p $out/etc
             cat > $out/etc/nsswitch.conf <<'EOF'
 passwd: files
@@ -62,8 +66,8 @@ EOF
           '';
         };
 
-        usersLayer = n2c.buildLayer {
-          copyToRoot = pkgs.runCommand "homebase-users" { } ''
+        usersLayer = buildLayer {
+          copyToRoot = pkgs.runCommand "homebase-users" {} ''
             mkdir -p $out/etc $out/etc/sudoers.d
             mkdir -p $out/home/vscode $out/workspaces
             cat > $out/etc/passwd <<'EOF'
@@ -78,14 +82,15 @@ EOF
             echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/vscode
             chmod 0440 $out/etc/sudoers.d/vscode
           '';
+          # Ownership + sane modes (no 0777) applied at layer creation
           perms = [
             { path = "copyToRoot"; regex = "^/home/vscode(/.*)?$"; uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
             { path = "copyToRoot"; regex = "^/workspaces(/.*)?$";  uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
           ];
         };
 
-        vscodeLayer = n2c.buildLayer {
-          copyToRoot = pkgs.runCommand "homebase-vscode" { } ''
+        vscodeLayer = buildLayer {
+          copyToRoot = pkgs.runCommand "homebase-vscode" {} ''
             install -Dm0644 ${vscodeMachineSettings} \
               $out/home/vscode/.vscode-server/data/Machine/settings.json
           '';
@@ -95,7 +100,7 @@ EOF
         };
 
       in rec {
-        packages.homebase = n2c.buildImage {
+        packages.homebase = buildImage {
           name   = "homebase";
           tag    = "latest";
           layers = [ baseLayer nssLayer usersLayer vscodeLayer ];
@@ -121,6 +126,7 @@ EOF
             };
           };
 
+          # Allow nix inside the running container
           initializeNixDatabase = true;
         };
 
