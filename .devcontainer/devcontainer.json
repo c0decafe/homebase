@@ -44,5 +44,6 @@
         "telemetry.telemetryLevel": "off"
       }
     }
-  }
+  },
+  "postStartCommand": "if command -v direnv >/dev/null 2>&1; then direnv allow || true; fi"
 }

@@ -22,6 +22,12 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-25.05-small
 
+      - name: Flake checks
+        run: nix flake check -L --no-write-lock-file
+
+      - name: Run tests
+        run: nix run -L --no-write-lock-file .#tests.basic
+
       - name: Build homebase image (nix2container)
         run: nix build -L --no-write-lock-file .#homebase
 
