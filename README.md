@@ -34,7 +34,7 @@ as the artifact that CI pushes to GitHub Container Registry.
    - system-wide `/etc/nix/nix.conf` enabling `nix-command flakes`,
    - direnv hooks baked into the default bash/zsh RC files,
    - `/home/vscode/.vscode-server/.../settings.json` pointing at exact Nix store paths for helper binaries.
-4. The repo now tracks a simple `.envrc` (`use flake`). Run `direnv allow` once and you are ready to go.
+4. Open a terminal and start working; nix, direnv hooks, and editor paths are already configured. Run `nix develop` manually only when you need the dev shell.
 
 ### Local Nix workflow
 
@@ -97,7 +97,7 @@ Triggers: push to `main` or manual `workflow_dispatch`.
 
 - **Copy step fails with "Exactly two arguments expected"** - ensure the workflow (or your local
   command) includes `--` when passing arguments to `nix run .#homebase.copyTo`.
-- **Direnv not loading** - ensure `direnv allow` succeeded (the repo ships an `.envrc` with `use flake`).
+- **Direnv not loading** - the shell already sources direnv; if you need extra rules, create your own `.envrc` and run `direnv allow` manually.
 - **Need Docker daemon access** - use `nix run .#homebase.copyToDockerDaemon` if you must import
   the image into Docker instead of pushing to a registry.
 

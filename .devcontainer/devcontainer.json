@@ -48,6 +48,5 @@
         "telemetry.telemetryLevel": "off"
       }
     }
-  },
-  "postStartCommand": "sh -c 'if [ -z \"${OPENAI_API_KEY:-}\" ]; then echo \"[WARN] OPENAI_API_KEY not set; ChatGPT extension cannot authenticate.\" >&2; fi'"
+  }
 }
