@@ -20,14 +20,14 @@
       config.allowUnfree = true;
     };
 
-    # Shared toolset available in BOTH image and devShell
+    # Shared toolset used by BOTH the image and devShell (keep things DRY)
     toolset = pkgs:
       with pkgs; [
         bash coreutils findutils git curl wget
         jq skopeo
         ripgrep fd bat tmux htop
         mtr traceroute whois lsof nmap socat tcpdump mosh
-        # resilient dnsutils (dig/host)
+        # dig/host (resilient across nixpkgs revs)
         (if pkgs ? bind && pkgs.bind ? dnsutils then pkgs.bind.dnsutils else pkgs.dnsutils)
         rclone rsync
         neovim direnv nix-direnv shellcheck shfmt stylua marksman
@@ -40,7 +40,7 @@
         nodePackages.prettier
       ];
 
-    # Default VS Code settings baked into image; bootstrap merges into .vscode/settings.json
+    # Default VS Code settings baked into the image; bootstrap merges into .vscode/settings.json
     mkEditorSettings = pkgs:
       pkgs.writeText "editor-settings.json" (builtins.toJSON {
         "direnv.path.executable" = "${pkgs.direnv}/bin/direnv";
@@ -54,8 +54,7 @@
     packages = forAll (system:
       let
         pkgs   = mkPkgs system;
-
-        # nix2container interface for this system
+        # Proper nix2container interface: import the package as a function with { pkgs = ... }
         n2cPkg = n2c.packages.${system}.nix2container;
         n2cLib = import n2cPkg { inherit pkgs; };
 
@@ -101,7 +100,7 @@
       }
     );
 
-    # ---------- Push app (skopeo under the hood) ----------
+    # ---------- Push app (uses Skopeo under the hood; no Docker daemon/tarballs) ----------
     apps = forAll (system:
       let
         pkgs   = mkPkgs system;
