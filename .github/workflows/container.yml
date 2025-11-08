@@ -14,6 +14,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+
     steps:
       - uses: actions/checkout@v4
 
@@ -23,18 +24,17 @@ jobs:
           nix_path: nixpkgs=channel:nixos-unstable-small
 
       - name: Configure Nix (flakes only)
+        shell: bash
         run: |
-          mkdir -p ~/.config/nix
-          cat > ~/.config/nix/nix.conf <<'EOF'
-          experimental-features = nix-command flakes
-          EOF
+          mkdir -p "$HOME/.config/nix"
+          printf "experimental-features = nix-command flakes\n" > "$HOME/.config/nix/nix.conf"
 
       - name: Login to GHCR (skopeo-compatible)
+        shell: bash
         run: |
-          mkdir -p ~/.docker
-          AUTH=$(printf "%s:%s" "c0decafe" "${{ secrets.GITHUB_TOKEN }}" | base64 -w0)
-          printf '{ "auths": { "ghcr.io": { "auth": "%s" } } }
-' "$AUTH" > ~/.docker/config.json
+          mkdir -p "$HOME/.docker"
+          AUTH="$(printf "%s:%s" "c0decafe" "${{ secrets.GITHUB_TOKEN }}" | base64 -w0)"
+          printf '{ "auths": { "ghcr.io": { "auth": "%s" } } }\n' "$AUTH" > "$HOME/.docker/config.json"
 
       - name: Build image (pure Nix)
         run: nix build -L --no-write-lock-file .#homebase
