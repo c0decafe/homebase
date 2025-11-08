@@ -1,137 +1,123 @@
 {
-  description = "nix homebase — nix2container image + devshell";
+  description = "nix homebase: minimal nix2container image for Codespaces (vscode user, nixos-25.05-small)";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable-small";
-    systems.url = "github:nix-systems/default";
-
-    devenv.url = "github:cachix/devenv";
-    devenv.inputs.nixpkgs.follows = "nixpkgs";
-
-    n2c.url = "github:nlewo/nix2container";
+    nixpkgs.url       = "github:NixOS/nixpkgs/nixos-25.05-small";
+    flake-utils.url   = "github:numtide/flake-utils";
+    nix2container.url = "github:nlewo/nix2container";
   };
 
-  outputs = { self, nixpkgs, systems, devenv, n2c, ... }:
-  let
-    forAll = nixpkgs.lib.genAttrs (import systems);
-
-    mkPkgs = system: import nixpkgs {
-      inherit system;
-      config.allowUnfree = true;
-    };
-
-    # Shared toolset used by BOTH the image and devShell (keep things DRY)
-    toolset = pkgs:
-      with pkgs; [
-        bash coreutils findutils git curl wget
-        jq skopeo
-        ripgrep fd bat tmux htop
-        mtr traceroute whois lsof nmap socat tcpdump mosh
-        # dig/host (resilient across nixpkgs revs)
-        (if pkgs ? bind && pkgs.bind ? dnsutils then pkgs.bind.dnsutils else pkgs.dnsutils)
-        rclone rsync
-        neovim direnv nix-direnv shellcheck shfmt stylua marksman
-        nodePackages.bash-language-server
-        nodePackages.typescript-language-server
-        nodePackages.yaml-language-server
-        nodePackages.vscode-langservers-extracted
-        lua-language-server
-        wrangler
-        nodePackages.prettier
-      ];
-
-    # Default VS Code settings baked into the image; bootstrap merges into .vscode/settings.json
-    mkEditorSettings = pkgs:
-      pkgs.writeText "editor-settings.json" (builtins.toJSON {
-        "direnv.path.executable" = "${pkgs.direnv}/bin/direnv";
-        "vscode-neovim.neovimExecutablePaths.linux" = "${pkgs.neovim}/bin/nvim";
-        "prettier.prettierPath" = "${pkgs.nodePackages.prettier}/bin/prettier";
-        "bashIde.shellcheckPath" = "${pkgs.shellcheck}/bin/shellcheck";
-        "shellformat.path" = "${pkgs.shfmt}/bin/shfmt";
-      });
-  in {
-    # ---------- Image + aux artifacts ----------
-    packages = forAll (system:
+  outputs = { self, nixpkgs, flake-utils, nix2container }:
+    flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs   = mkPkgs system;
-        # Proper nix2container interface: import the package as a function with { pkgs = ... }
-        n2cPkg = n2c.packages.${system}.nix2container;
-        n2cLib = import n2cPkg { inherit pkgs; };
+        pkgs = import nixpkgs { inherit system; };
 
-        settings = mkEditorSettings pkgs;
+        # Minimal base toolset for Codespaces
+        tools = with pkgs; [
+          bashInteractive coreutils findutils gnugrep gawk
+          git openssh curl wget
+          neovim ripgrep fd jq eza tree which gnused gnutar gzip xz
+          direnv nix-direnv
+          rsync rclone skopeo
+          gh wrangler
+          nixVersions.stable
+          sudo
+          iproute2 iputils traceroute mtr whois mosh lsof
+        ];
 
-        # Layers
-        rootfs = n2cLib.layer {
-          name = "rootfs";
-          contents = toolset pkgs;
+        n2c = nix2container.packages.${system}.nix2container;
+
+        rootfs = pkgs.buildEnv {
+          name = "homebase-root";
+          paths = tools;
+          pathsToLink = [ "/bin" "/share" ];
         };
 
-        settingsLayer = n2cLib.layer {
-          name = "editor-settings";
-          contents = [
-            (pkgs.runCommand "editor-settings-root" {} ''
-              install -Dm0644 ${settings} $out/opt/homebase/editor-settings.json
-            '')
-          ];
-        };
+        # Simple NSS config
+        nssLayer = pkgs.runCommand "homebase-nss" {} ''
+          mkdir -p $out/etc
+          cat > $out/etc/nsswitch.conf <<'EOF'
+passwd: files
+group:  files
+shadow: files
+hosts:  files dns
+networks: files
+services: files
+protocols: files
+ethers: files
+rpc: files
+netgroup: files
+EOF
+        '';
 
-        image = n2cLib.buildImage {
-          name = "ghcr.io/c0decafe/homebase";
+        # Add vscode user and own /workspaces
+        usersLayer = pkgs.runCommand "homebase-users" {} ''
+          mkdir -p $out/etc $out/etc/sudoers.d
+          mkdir -p $out/home/vscode $out/workspaces
+          cat > $out/etc/passwd <<'EOF'
+root:x:0:0:root:/root:/bin/bash
+vscode:x:1000:1000:VS Code:/home/vscode:/bin/bash
+EOF
+          cat > $out/etc/group <<'EOF'
+root:x:0:
+vscode:x:1000:
+sudo:x:27:vscode
+docker:x:999:vscode
+EOF
+          echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/vscode
+          chmod 0440 $out/etc/sudoers.d/vscode
+          chmod 0755 $out/home/vscode
+          chown -R 1000:1000 $out/home/vscode
+          chown -R 1000:1000 $out/workspaces
+        '';
+
+        # VSCode Machine settings for vscode user (absolute paths)
+        vscodeMachineSettings = pkgs.writeText "vscode-machine-settings.json" (builtins.toJSON {
+          "direnv.path.executable" = "${pkgs.direnv}/bin/direnv";
+          "vscode-neovim.neovimExecutablePaths.linux" = "${pkgs.neovim}/bin/nvim";
+          "files.trimTrailingWhitespace" = true;
+        });
+
+        vscodeMachineLayer = pkgs.runCommand "homebase-vscode-machine-settings" {} ''
+          install -Dm0644 ${vscodeMachineSettings} \
+            $out/home/vscode/.vscode-server/data/Machine/settings.json
+          chown -R 1000:1000 $out/home/vscode
+        '';
+      in rec {
+        packages.homebase = n2c.buildImage {
+          name = "homebase";
           tag  = "latest";
-          maxLayers = 64;
-          layers = [ rootfs settingsLayer ];
+
+          copyToRoot = pkgs.buildEnv {
+            name = "image-root";
+            paths = [ rootfs nssLayer usersLayer vscodeMachineLayer ];
+            pathsToLink = [ "/bin" "/etc" "/share" "/home" "/workspaces" ];
+          };
+
           config = {
-            WorkingDir = "/workspace";
-            Cmd = [ "${pkgs.bash}/bin/bash" "-l" ];
             Env = [
+              "PATH=/bin"
+              "SHELL=/bin/bash"
+              "EDITOR=nvim"
+              "PAGER=less"
+              "LC_ALL=C"
+              "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+              "GIT_SSL_CAINFO=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
             ];
-            Labels = {
-              "org.opencontainers.image.title" = "homebase";
-              "org.opencontainers.image.description" =
-                "Slim Nix-powered dev container with Wrangler, skopeo, LSPs, and CLI basics";
-              "org.opencontainers.image.source" = "https://github.com/c0decafe/homebase";
-            };
+            Entrypoint = [ "/bin/bash" ];
+            WorkingDir = "/workspaces";
+            User = "vscode";
           };
-        };
-      in {
-        homebase = image;
-        editor-settings = settings;
-      }
-    );
 
-    # ---------- Push app (uses Skopeo under the hood; no Docker daemon/tarballs) ----------
-    apps = forAll (system:
-      let
-        pkgs   = mkPkgs system;
-        n2cPkg = n2c.packages.${system}.nix2container;
-        n2cLib = import n2cPkg { inherit pkgs; };
-      in {
-        push = {
-          type = "app";
-          program = toString (n2cLib.copyToRegistry {
-            image = self.packages.${system}.homebase;
-            destination = "docker://ghcr.io/c0decafe/homebase:latest";
-          });
+          initializeNixDatabase = true;
+        };
+
+        packages.default = packages.homebase;
+
+        devShells.default = pkgs.mkShell {
+          packages = with pkgs; [ nixVersions.stable git jq ];
         };
       }
     );
-
-    # ---------- DevShell ----------
-    devShells = forAll (system:
-      let pkgs = mkPkgs system;
-      in {
-        default = devenv.lib.mkShell {
-          inherit pkgs;
-          modules = [{
-            languages.nix.enable = true;
-            packages = toolset pkgs;
-          }];
-        };
-      }
-    );
-
-    # ---------- Formatter ----------
-    formatter = forAll (system: (mkPkgs system).nixfmt-rfc-style);
-  };
 }

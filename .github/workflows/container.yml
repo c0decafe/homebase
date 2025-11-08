@@ -1,48 +1,50 @@
 name: container
+
 on:
   push:
     branches: [ main ]
   workflow_dispatch: {}
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install Nix
         uses: cachix/install-nix-action@v27
         with:
+          # small channel is fine for the runner; your flake pins nixos-25.05-small
           nix_path: nixpkgs=channel:nixos-unstable-small
 
-      - name: Configure Nix (flakes only)
-        shell: bash
+      - name: Enable flakes
         run: |
           mkdir -p "$HOME/.config/nix"
           printf "experimental-features = nix-command flakes\n" > "$HOME/.config/nix/nix.conf"
 
-      - name: Login to GHCR (skopeo-compatible)
-        shell: bash
+      - name: Login to GHCR (for skopeo)
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
         run: |
           mkdir -p "$HOME/.docker"
-          AUTH="$(printf "%s:%s" "c0decafe" "${{ secrets.GITHUB_TOKEN }}" | base64 -w0)"
+          AUTH="$(printf "%s:%s" "$ACTOR" "$TOKEN" | base64 -w0)"
           printf '{ "auths": { "ghcr.io": { "auth": "%s" } } }\n' "$AUTH" > "$HOME/.docker/config.json"
 
-      - name: Build image (pure Nix)
+      - name: Build image with nix2container
         run: nix build -L --no-write-lock-file .#homebase
 
-      - name: Push image (nix2container -> GHCR)
-        run: nix run -L --no-write-lock-file .#push
-
-      - name: Cleanup
+      - name: Push to GHCR (latest)
         run: |
-          nix store gc || true
-          df -h || true
+          nix run -L --no-write-lock-file .#homebase.copyToRegistry -- \
+            --destination docker://ghcr.io/c0decafe/homebase:latest
+
+      - name: Disk usage (debug)
+        if: always()
+        run: df -h
