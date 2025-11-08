@@ -7,13 +7,6 @@
       "installOhMyZsh": true
     },
     "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "lts"
-    },
-    "ghcr.io/devcontainers/features/python:1": {
-      "version": "3.11"
-    },
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "moby": true
     },
@@ -22,27 +15,8 @@
   "onCreateCommand": "./.devcontainer/bootstrap.sh",
   "forwardPorts": [
     3000,
-    3001,
-    3002,
-    3003,
-    3004,
-    3005,
-    3006,
-    3007,
-    3008,
-    3009,
-    3010,
-    8000,
-    8001,
-    8002,
-    8003,
-    8004,
-    8005,
-    8006,
-    8007,
-    8008,
-    8009,
-    8010
+    5173,
+    8000
   ],
   "customizations": {
     "vscode": {
@@ -56,9 +30,8 @@
         "esbenp.prettier-vscode",
         "dbaeumer.vscode-eslint",
         "stylelint.vscode-stylelint",
-        "ms-vscode.vscode-typescript-next",
-        "redhat.vscode-yaml",
         "ms-azuretools.vscode-docker",
+        "redhat.vscode-yaml",
         "cloudflare.cloudflare-workers"
       ],
       "settings": {

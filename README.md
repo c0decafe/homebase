@@ -1,9 +1,12 @@
-# 🏠 nix-homebase (slim, Wrangler kept)
+# 🏠 homebase — clean, DRY, slim
 
-Slim DevContainer image:
-- `nixos-unstable-small` nixpkgs
-- layered Docker image (`streamLayeredImage`)
-- big SDKs removed (keeps **Wrangler**)
-- CI cleans Nix store after push
+Applied:
+- Minimal ports: **3000, 5173, 8000**
+- DevContainer features trimmed (Nix + git + common utils + Docker only)
+- Dropped OpenAI/Anthropic/Google-gen libs and Python tooling
+- DRY helpers (`toolset`, `mkEditorSettings`)
+- Layered image (`streamLayeredImage`) with OCI labels
+- Skopeo push to GHCR; concurrency + cleanup
+- Bootstrap merges VS Code settings with `jq` and auto-`direnv allow`
 
-Open in Codespaces; bootstrap will sync VS Code settings and enable direnv. Prebuilt tag: `ghcr.io/c0decafe/homebase:latest`.
+Build/push target: `ghcr.io/c0decafe/homebase:latest`
