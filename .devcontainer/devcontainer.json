@@ -20,7 +20,8 @@
         "stylelint.vscode-stylelint",
         "ms-azuretools.vscode-docker",
         "redhat.vscode-yaml",
-        "cloudflare.cloudflare-workers"
+        "cloudflare.cloudflare-workers",
+        "openai.chatgpt"
       ],
       "settings": {
         "files.trimTrailingWhitespace": true,
