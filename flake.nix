@@ -37,6 +37,11 @@
         vscodeMachineSettings = pkgs.writeText "vscode-machine-settings.json" (builtins.toJSON {
           "direnv.path.executable" = "${pkgs.direnv}/bin/direnv";
           "vscode-neovim.neovimExecutablePaths.linux" = "${pkgs.neovim}/bin/nvim";
+          "nix.enableLanguageServer" = true;
+          "nix.serverPath" = "${pkgs.nixd}/bin/nixd";
+          "eslint.runtime" = "${pkgs.nodejs_22}/bin/node";
+          "stylelint.stylelintPath" = "${pkgs.nodePackages_latest.stylelint}/bin/stylelint";
+          "prettier.prettierPath" = "${pkgs.nodePackages_latest.prettier}/bin/prettier";
         });
 
         # ---- Layers ----
