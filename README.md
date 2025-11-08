@@ -59,7 +59,7 @@ nix build .#editor-settings
 ### ChatGPT / Codex integration
 
 - The devcontainer installs the official `openai.chatgpt` extension.
-- Set `OPENAI_API_KEY` as a GitHub Codespaces secret (or locally in your shell) before launching.
+- Set `OPENAI_API_KEY` as a GitHub Codespaces secret (or locally in your shell) before launching; the container will warn at startup if it's missing.
 - Inside VS Code run “OpenAI: Set API Key” once; the extension will reuse the stored token afterward.
 
 ## Image contents

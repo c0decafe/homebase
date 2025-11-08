@@ -10,6 +10,7 @@
     "vscode": {
       "extensions": [
         "jnoortheen.nix-ide",
+        "arrterian.nix-env-selector",
         "mkhl.direnv",
         "vscodevim.vim",
         "asvetliakov.vscode-neovim",
@@ -36,8 +37,10 @@
         "editor.lineNumbers": "relative",
         "editor.smoothScrolling": true,
         "vim.enableNeovim": true,
+        "vim.neovimUseWSL": false,
         "vim.useSystemClipboard": true,
         "vim.statusBarColorControl": true,
+        "vim.highlightedyank.enable": true,
         "workbench.startupEditor": "none",
         "workbench.tips.enabled": false,
         "workbench.welcomePage.walkthroughs.openOnInstall": false,
@@ -46,5 +49,5 @@
       }
     }
   },
-  "postStartCommand": "if command -v direnv >/dev/null 2>&1; then direnv allow || true; fi"
+  "postStartCommand": "sh -c 'if command -v direnv >/dev/null 2>&1; then direnv allow || true; fi; if [ -z \"${OPENAI_API_KEY:-}\" ]; then echo \"[WARN] OPENAI_API_KEY not set; ChatGPT extension will not be able to authenticate.\" >&2; fi'"
 }
