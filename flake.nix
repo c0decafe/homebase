@@ -11,7 +11,9 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
-        n2c  = nix2container.lib.${system};
+
+        # IMPORTANT: import nix2container's default.nix with our pkgs
+        n2c = import nix2container { inherit pkgs; };
 
         # ---- Base tools (lean) ----
         tools = with pkgs; [
@@ -26,7 +28,14 @@
           iproute2 iputils traceroute mtr whois mosh lsof
         ];
 
-        # Flatten under /bin for stable absolute paths
+        # VS Code Machine settings for vscode (absolute store paths)
+        vscodeMachineSettings = pkgs.writeText "vscode-machine-settings.json" (builtins.toJSON {
+          "direnv.path.executable" = "${pkgs.direnv}/bin/direnv";
+          "vscode-neovim.neovimExecutablePaths.linux" = "${pkgs.neovim}/bin/nvim";
+          "files.trimTrailingWhitespace" = true;
+        });
+
+        # ---- Layers ----
         baseLayer = n2c.buildLayer {
           copyToRoot = pkgs.buildEnv {
             name = "homebase-base";
@@ -35,7 +44,6 @@
           };
         };
 
-        # ---- Minimal NSS ----
         nssLayer = n2c.buildLayer {
           copyToRoot = pkgs.runCommand "homebase-nss" { } ''
             mkdir -p $out/etc
@@ -54,7 +62,6 @@ EOF
           '';
         };
 
-        # ---- User + workspace skeleton (no chmod/chown here) ----
         usersLayer = n2c.buildLayer {
           copyToRoot = pkgs.runCommand "homebase-users" { } ''
             mkdir -p $out/etc $out/etc/sudoers.d
@@ -71,20 +78,11 @@ EOF
             echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/vscode
             chmod 0440 $out/etc/sudoers.d/vscode
           '';
-
-          # Set ownership and sane modes at layer creation time
           perms = [
             { path = "copyToRoot"; regex = "^/home/vscode(/.*)?$"; uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
             { path = "copyToRoot"; regex = "^/workspaces(/.*)?$";  uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
           ];
         };
-
-        # ---- VS Code Machine settings (absolute Nix store paths) ----
-        vscodeMachineSettings = pkgs.writeText "vscode-machine-settings.json" (builtins.toJSON {
-          "direnv.path.executable" = "${pkgs.direnv}/bin/direnv";
-          "vscode-neovim.neovimExecutablePaths.linux" = "${pkgs.neovim}/bin/nvim";
-          "files.trimTrailingWhitespace" = true;
-        });
 
         vscodeLayer = n2c.buildLayer {
           copyToRoot = pkgs.runCommand "homebase-vscode" { } ''
@@ -97,7 +95,6 @@ EOF
         };
 
       in rec {
-        # ---- Final image composed from layers ----
         packages.homebase = n2c.buildImage {
           name   = "homebase";
           tag    = "latest";
@@ -124,13 +121,11 @@ EOF
             };
           };
 
-          # Enable nix inside the running container
           initializeNixDatabase = true;
         };
 
         packages.default = packages.homebase;
 
-        # Optional dev shell for local hacking
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [ nixVersions.stable git jq ];
         };
