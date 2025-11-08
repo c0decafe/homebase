@@ -23,12 +23,9 @@ done
 command -v direnv >/dev/null 2>&1 && direnv allow || true
 
 mkdir -p .vscode
-SRC="/opt/homebase/editor-settings.json"
-if [[ ! -f "$SRC" ]]; then
-  echo "[bootstrap] building editor-settings from flake"
-  nix build -L .#editor-settings --no-write-lock-file --out-link .editor-settings
-  SRC="$(readlink -f .editor-settings)"
-fi
+echo "[bootstrap] building editor-settings from flake"
+nix build -L .#editor-settings --no-write-lock-file --out-link .editor-settings
+SRC="$(readlink -f .editor-settings)"
 
 HASHDIR=".devcontainer"
 HASHFILE="$HASHDIR/.sync.hash"

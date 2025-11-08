@@ -101,6 +101,8 @@ EOF
         };
 
       in rec {
+        packages.editor-settings = vscodeMachineSettings;
+
         packages.homebase = buildImage {
           name   = "homebase";
           tag    = "latest";
