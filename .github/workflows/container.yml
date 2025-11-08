@@ -20,7 +20,6 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v27
         with:
-          # small channel is fine for the runner; your flake pins nixos-25.05-small
           nix_path: nixpkgs=channel:nixos-25.05-small
 
       - name: Enable flakes
@@ -28,19 +27,20 @@ jobs:
           mkdir -p "$HOME/.config/nix"
           printf "experimental-features = nix-command flakes\n" > "$HOME/.config/nix/nix.conf"
 
-      - name: Login to GHCR (for skopeo)
+      - name: Build homebase image (nix2container)
+        run: nix build -L --no-write-lock-file .#homebase
+
+      - name: Login to GHCR (Docker auth)
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACTOR: ${{ github.actor }}
         run: |
-          mkdir -p "$HOME/.docker"
-          AUTH="$(printf "%s:%s" "$ACTOR" "$TOKEN" | base64 -w0)"
-          printf '{ "auths": { "ghcr.io": { "auth": "%s" } } }\n' "$AUTH" > "$HOME/.docker/config.json"
+          echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
 
-      - name: Build image with nix2container
-        run: nix build -L --no-write-lock-file .#homebase
+      - name: Expose Docker auth to skopeo
+        run: echo "REGISTRY_AUTH_FILE=$HOME/.docker/config.json" >> "$GITHUB_ENV"
 
-      - name: Push to GHCR (latest)
+      - name: Copy to Docker registry (GHCR) via nix2container
         run: |
           nix run -L --no-write-lock-file .#homebase.copyToRegistry -- \
             docker://ghcr.io/c0decafe/homebase:latest
