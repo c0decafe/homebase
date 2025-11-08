@@ -22,7 +22,7 @@ as the artifact that CI pushes to GitHub Container Registry.
 |------|---------|
 | `flake.nix` | Defines the image (`packages.homebase`), dev shell, and helper outputs. |
 | `.github/workflows/container.yml` | GitHub Actions workflow that builds and pushes the image on `main`. |
-| `.devcontainer/devcontainer.json` | Devcontainer manifest pointing to the published image plus useful features. |
+| `.devcontainer/devcontainer.json` | Devcontainer manifest pointing to the published image (adds Docker-in-Docker when needed). |
 
 ## Quick start
 

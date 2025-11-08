@@ -2,11 +2,6 @@
   "name": "nix-homebase",
   "image": "ghcr.io/c0decafe/homebase:latest",
   "features": {
-    "ghcr.io/devcontainers/features/common-utils:2": {
-      "installZsh": true,
-      "installOhMyZsh": true
-    },
-    "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "moby": true
     }
