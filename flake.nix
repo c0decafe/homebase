@@ -78,7 +78,9 @@
     );
 
     apps = forAll (system:
-      let n2cLib = n2c.lib { pkgs = pkgs; };
+      let
+        pkgs   = mkPkgs system;
+        n2cLib = n2c.lib { pkgs = pkgs; };
       in {
         push = {
           type = "app";
