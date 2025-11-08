@@ -14,9 +14,9 @@ EOF
 
 for sh in bash zsh; do
   rc="$HOME/.${sh}rc"
-  if [[ "$sh" == "bash" ]]:
+  if [[ "$sh" == "bash" ]]; then
     hook='eval "$(direnv hook bash)"'
-  else:
+  else
     hook='eval "$(direnv hook zsh)"'
   fi
   grep -q 'direnv hook' "$rc" 2>/dev/null || echo "$hook" >> "$rc"

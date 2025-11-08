@@ -32,14 +32,9 @@ jobs:
       - name: Build (capture out path; no lockfile)
         run: echo IMAGE_PATH=$(nix build -L --no-write-lock-file .#homebase --print-out-paths) >> $GITHUB_ENV
 
-      - name: Set OCI label env
-        run: |
-          echo CREATED=$(date -u +%Y-%m-%dT%H:%M:%SZ) >> $GITHUB_ENV
-          echo REV=${{ github.sha }} >> $GITHUB_ENV
-
       - name: Push with skopeo (no docker load)
         run: |
-          nix shell -L --inputs-from . nixpkgs#skopeo --command             skopeo copy --retry-times 3 --insecure-policy               --dest-creds "c0decafe:${{ secrets.GITHUB_TOKEN }}"               --annotation org.opencontainers.image.created="${CREATED}"               --annotation org.opencontainers.image.revision="${REV}"               "docker-archive:${IMAGE_PATH}"               "docker://ghcr.io/c0decafe/homebase:latest"
+          nix shell -L --inputs-from . nixpkgs#skopeo --command             skopeo copy --retry-times 3 --insecure-policy               --dest-creds "c0decafe:${{ secrets.GITHUB_TOKEN }}"               "docker-archive:${IMAGE_PATH}"               "docker://ghcr.io/c0decafe/homebase:latest"
 
       - name: Clean up Nix store and workspace
         run: |

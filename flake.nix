@@ -1,5 +1,5 @@
 {
-  description = "homebase — clean & DRY";
+  description = "homebase — clean & DRY (with skopeo)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable-small";
@@ -15,7 +15,7 @@
 
     toolset = pkgs: with pkgs; [
       bash coreutils findutils git curl wget
-      jq
+      jq skopeo
       ripgrep fd bat tmux htop mtr traceroute whois lsof nmap socat tcpdump bind.dnsutils
       rclone rsync
       neovim direnv nix-direnv shellcheck shfmt stylua marksman
@@ -54,7 +54,7 @@
             Env = [ "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt" ];
             Labels = {
               "org.opencontainers.image.title" = "homebase";
-              "org.opencontainers.image.description" = "Slim Nix-powered dev container with Wrangler and LSPs";
+              "org.opencontainers.image.description" = "Slim Nix-powered dev container with Wrangler, skopeo and LSPs";
               "org.opencontainers.image.source" = "https://github.com/c0decafe/homebase";
             };
           };
@@ -64,7 +64,9 @@
 
     devShells = forAll (system:
       let pkgs = mkPkgs system;
-      in { default = devenv.lib.mkShell { inherit pkgs; modules = [{ languages.nix.enable = true; packages = toolset pkgs; }]; }; }
+      in {
+        default = devenv.lib.mkShell { inherit pkgs; modules = [{ languages.nix.enable = true; packages = toolset pkgs; }]; };
+      }
     );
 
     formatter = forAll (system: (mkPkgs system).nixfmt-rfc-style);
