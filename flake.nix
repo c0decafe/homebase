@@ -103,7 +103,13 @@ EOF
         packages.homebase = buildImage {
           name   = "homebase";
           tag    = "latest";
-          fromImage = "docker://registry-1.docker.io/library/debian:bookworm-slim";
+          fromImage = n2c.nix2container.pullImage {
+            imageName = "library/debian";
+            imageDigest = "sha256:f522a3167fb670cc4a4518fab6d8c4227fe4bc458f4c7294832383bf284d5e78";
+            sha256 = pkgs.lib.fakeSha256;
+            arch = "amd64";
+            os = "linux";
+          };
           layers = [ baseLayer homeLayer vscodeLayer nixConfigLayer ];
 
           config = {
