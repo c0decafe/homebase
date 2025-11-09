@@ -103,7 +103,7 @@ EOF
         packages.homebase = buildImage {
           name   = "homebase";
           tag    = "latest";
-          fromImage = "docker.io/library/debian:bookworm";
+          fromImage = "docker://registry-1.docker.io/library/debian:bookworm-slim";
           layers = [ baseLayer homeLayer vscodeLayer nixConfigLayer ];
 
           config = {
