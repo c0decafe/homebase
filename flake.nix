@@ -122,7 +122,7 @@ EOF
             arch = "amd64";
             os = "linux";
           };
-          layers = [ compatLayer baseLayer homeLayer vscodeLayer nixConfigLayer ];
+          layers = [ baseLayer homeLayer vscodeLayer nixConfigLayer ];
 
           config = {
             Env = [
