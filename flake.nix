@@ -87,7 +87,7 @@ EOF
               #!/usr/bin/env bash
               set -euo pipefail
 
-              export PATH=${pkgs.lib.makeBinPath [ pkgs.docker pkgs.containerd pkgs.runc pkgs.iptables pkgs.pigz ]}:$PATH
+              export PATH=${pkgs.lib.makeBinPath [ pkgs.docker pkgs.containerd pkgs.runc pkgs.iptables pkgs.pigz pkgs.util-linux pkgs.procps ]}:$PATH
 
               mkdir -p /var/lib/docker
               export DOCKER_RAMDISK=yes
@@ -102,7 +102,19 @@ EOF
                 sed -e 's/ / +/g' -e 's/^/+/' < /sys/fs/cgroup/cgroup.controllers > /sys/fs/cgroup/cgroup.subtree_control
               fi
 
-              dockerd --host=unix:///var/run/docker.sock > /tmp/dockerd.log 2>&1 &
+              if pgrep -x dockerd >/dev/null; then
+                echo "dockerd already running" >&2
+                exit 0
+              fi
+
+              if pgrep -x containerd >/dev/null; then
+                pkill containerd || true
+              fi
+
+              ${pkgs.containerd}/bin/containerd >/tmp/containerd.log 2>&1 &
+              sleep 2
+
+              ${pkgs.docker}/bin/dockerd --host=unix:///var/run/docker.sock > /tmp/dockerd.log 2>&1 &
             ''} $out/usr/local/share/docker-init.sh
           '';
           perms = [
