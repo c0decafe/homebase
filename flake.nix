@@ -33,6 +33,13 @@
           codex
         ];
 
+        dockerCompatPaths = with pkgs.dockerTools; [
+          usrBinEnv
+          binSh
+          caCertificates
+          fakeNss
+        ];
+
         # VS Code Machine settings for vscode (absolute store paths to nvim/direnv)
         vscodeMachineSettings = pkgs.writeText "vscode-machine-settings.json" (builtins.toJSON {
           "direnv.path.executable" = "${pkgs.direnv}/bin/direnv";
@@ -50,6 +57,14 @@
             name = "homebase-base";
             paths = tools;
             pathsToLink = [ "/bin" "/share" ];
+          };
+        };
+
+        compatLayer = buildLayer {
+          copyToRoot = pkgs.buildEnv {
+            name = "homebase-compat";
+            paths = dockerCompatPaths;
+            pathsToLink = [ "/bin" "/usr" "/etc" ];
           };
         };
 
@@ -131,7 +146,7 @@ EOF
         packages.homebase = buildImage {
           name   = "homebase";
           tag    = "latest";
-          layers = [ baseLayer nssLayer usersLayer vscodeLayer nixConfigLayer ];
+          layers = [ compatLayer baseLayer nssLayer usersLayer vscodeLayer nixConfigLayer ];
 
           config = {
             Env = [
