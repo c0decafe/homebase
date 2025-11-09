@@ -53,6 +53,40 @@
           };
         };
 
+        homeLayer = buildLayer {
+          copyToRoot = pkgs.runCommand "homebase-home" {} ''
+            mkdir -p $out/etc/sudoers.d
+            mkdir -p $out/home/vscode $out/workspaces
+            echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/vscode
+            chmod 0440 $out/etc/sudoers.d/vscode
+
+            cat >> $out/home/vscode/.bashrc <<'EOF'
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv hook bash)"
+fi
+EOF
+            cat >> $out/home/vscode/.zshrc <<'EOF'
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv hook zsh)"
+fi
+EOF
+          '';
+          perms = [
+            { path = "copyToRoot"; regex = "^/home/vscode(/.*)?$"; uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
+            { path = "copyToRoot"; regex = "^/workspaces(/.*)?$";  uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
+          ];
+        };
+
+        vscodeLayer = buildLayer {
+          copyToRoot = pkgs.runCommand "homebase-vscode" {} ''
+            install -Dm0644 ${vscodeMachineSettings} \
+              $out/home/vscode/.vscode-server/data/Machine/settings.json
+          '';
+          perms = [
+            { path = "copyToRoot"; regex = "^/home/vscode(/.*)?$"; uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
+          ];
+        };
+
         nixConfigLayer = buildLayer {
           copyToRoot = pkgs.runCommand "homebase-nix-config" {} ''
             install -Dm0644 ${pkgs.writeText "nix.conf" ''
@@ -70,7 +104,7 @@
           name   = "homebase";
           tag    = "latest";
           fromImage = "docker.io/library/debian:bookworm";
-          layers = [ baseLayer nixConfigLayer ];
+          layers = [ baseLayer homeLayer vscodeLayer nixConfigLayer ];
 
           config = {
             Env = [
