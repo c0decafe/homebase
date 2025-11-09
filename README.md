@@ -34,6 +34,7 @@ as the artifact that CI pushes to GitHub Container Registry.
    - system-wide `/etc/nix/nix.conf` enabling `nix-command flakes`,
    - direnv hooks baked into the default bash/zsh/fish configs (fish also sources the Nix profile),
    - `/home/vscode/.vscode-server/.../settings.json` pointing at exact Nix store paths for helper binaries.
+   - Docker Engine + containerd installed via Nix; the devcontainer `postStartCommand` launches `dockerd` automatically.
 4. Open a terminal and start working; nix, direnv hooks, and editor paths are already configured. Run `nix develop` manually only when you need the dev shell.
 
 ### Local Nix workflow
@@ -68,7 +69,8 @@ Defined in `flake.nix`:
 
 - **Base tools** (`tools` list) - bash, coreutils, git, nix, ripgrep, fd, jq, neovim, skopeo,
   wrangler, network debuggers, etc.
-- **Base image** - builds on top of `debian:bookworm`, satisfying the Docker-in-Docker feature’s `apt`/`dpkg` requirements.
+- **Base layers** - built entirely from Nix (no Debian base image) with a compatibility layer that injects `/etc/passwd`, `/bin/sh`, and CA certificates so the environment stands on its own.
+- **Docker runtime** - Docker Engine, containerd, runc, and friends are provided via Nix and started automatically when the container boots.
 - **Home/user layer** - ensures the `vscode` user exists with sudo privileges, fish/direnv hooks, and ready-to-use workspace directories.
 - **VS Code layer** - drops the machine settings JSON under
   `/home/vscode/.vscode-server/data/Machine/settings.json` with correct store paths for direnv and

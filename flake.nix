@@ -22,6 +22,7 @@
         # ---- Base tools (lean) ----
         tools = with pkgs; [
           bashInteractive coreutils findutils gnugrep gawk
+          git openssh curl wget
           neovim ripgrep fd jq eza tree which gnused gnutar gzip xz
           direnv nix-direnv
           rsync rclone skopeo
@@ -34,7 +35,25 @@
           pigz
           iptables
           sudo
+          fish
           codex
+        ];
+
+        fakeNssExtended = pkgs.dockerTools.fakeNss.override {
+          extraPasswdLines = [
+            "vscode:x:1000:1000:VS Code:/home/vscode:${pkgs.fish}/bin/fish"
+          ];
+          extraGroupLines = [
+            "vscode:x:1000:"
+            "docker:x:998:vscode"
+          ];
+        };
+
+        dockerCompatPaths = [
+          pkgs.dockerTools.usrBinEnv
+          pkgs.dockerTools.binSh
+          pkgs.dockerTools.caCertificates
+          fakeNssExtended
         ];
 
         # VS Code Machine settings for vscode (absolute store paths to nvim/direnv)
@@ -54,6 +73,14 @@
             name = "homebase-base";
             paths = tools;
             pathsToLink = [ "/bin" "/share" ];
+          };
+        };
+
+        compatLayer = buildLayer {
+          copyToRoot = pkgs.buildEnv {
+            name = "homebase-compat";
+            paths = dockerCompatPaths;
+            pathsToLink = [ "/bin" "/usr" "/etc" ];
           };
         };
 
@@ -87,10 +114,19 @@ EOF
               #!/usr/bin/env bash
               set -euo pipefail
 
-              export PATH=${pkgs.lib.makeBinPath [ pkgs.docker pkgs.containerd pkgs.runc pkgs.iptables pkgs.pigz pkgs.util-linux pkgs.procps ]}:$PATH
+              export PATH=${pkgs.lib.makeBinPath [ pkgs.docker pkgs.containerd pkgs.runc pkgs.iptables pkgs.pigz pkgs.util-linux pkgs.procps pkgs.coreutils ]}:$PATH
+              SOCKET=/var/run/docker.sock
 
               mkdir -p /var/lib/docker
+              mkdir -p /var/run
               export DOCKER_RAMDISK=yes
+
+              if pgrep -x dockerd >/dev/null 2>&1; then
+                pkill dockerd || true
+              fi
+              if pgrep -x containerd >/dev/null 2>&1; then
+                pkill containerd || true
+              fi
 
               if [ -d /sys/kernel/security ] && ! mountpoint -q /sys/kernel/security; then
                 mount -t securityfs none /sys/kernel/security || echo "WARN: could not mount securityfs" >&2
@@ -111,10 +147,24 @@ EOF
                 pkill containerd || true
               fi
 
+              rm -f "$SOCKET"
+
               ${pkgs.containerd}/bin/containerd >/tmp/containerd.log 2>&1 &
               sleep 2
 
-              ${pkgs.docker}/bin/dockerd --host=unix:///var/run/docker.sock > /tmp/dockerd.log 2>&1 &
+              ${pkgs.docker}/bin/dockerd --host=unix://$SOCKET > /tmp/dockerd.log 2>&1 &
+
+              for i in $(seq 1 30); do
+                if ${pkgs.docker}/bin/docker info >/dev/null 2>&1; then
+                  chown root:docker "$SOCKET" || true
+                  chmod 660 "$SOCKET" || true
+                  exit 0
+                fi
+                sleep 1
+              done
+
+              echo "dockerd failed to start" >&2
+              exit 1
             ''} $out/usr/local/share/docker-init.sh
           '';
           perms = [
@@ -149,14 +199,7 @@ EOF
         packages.homebase = buildImage {
           name   = "homebase";
           tag    = "latest";
-          fromImage = n2c.nix2container.pullImage {
-            imageName = "library/debian";
-            imageDigest = "sha256:f522a3167fb670cc4a4518fab6d8c4227fe4bc458f4c7294832383bf284d5e78";
-            sha256 = "sha256-rCwMZI6cdEmElJaJqjZ/9jCPLQJ3BPPZvPOf5dfsV4g=";
-            arch = "amd64";
-            os = "linux";
-          };
-          layers = [ baseLayer homeLayer vscodeLayer nixConfigLayer ];
+          layers = [ compatLayer baseLayer homeLayer vscodeLayer nixConfigLayer ];
 
           config = {
             Env = [
