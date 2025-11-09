@@ -40,6 +40,7 @@
           extraGroupLines = [
             "vscode:x:1000:"
             "sudo:x:27:vscode"
+            "docker:x:1001:vscode"
           ];
         };
 
