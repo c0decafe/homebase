@@ -106,7 +106,7 @@ EOF
           fromImage = n2c.nix2container.pullImage {
             imageName = "library/debian";
             imageDigest = "sha256:f522a3167fb670cc4a4518fab6d8c4227fe4bc458f4c7294832383bf284d5e78";
-            sha256 = pkgs.lib.fakeSha256;
+            sha256 = "sha256-rCwMZI6cdEmElJaJqjZ/9jCPLQJ3BPPZvPOf5dfsV4g=";
             arch = "amd64";
             os = "linux";
           };
