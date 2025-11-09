@@ -44,11 +44,22 @@
           ];
         };
 
+        osRelease = pkgs.runCommand "os-release" {} ''
+          mkdir -p $out/etc
+          cat > $out/etc/os-release <<'EOF'
+NAME="homebase (nix2container)"
+ID=homebase
+PRETTY_NAME="homebase (nix2container)"
+HOME_URL="https://github.com/c0decafe/homebase"
+EOF
+        '';
+
         dockerCompatPaths = [
           pkgs.dockerTools.usrBinEnv
           pkgs.dockerTools.binSh
           pkgs.dockerTools.caCertificates
           fakeNssExtended
+          osRelease
         ];
 
         # VS Code Machine settings for vscode (absolute store paths to nvim/direnv)
