@@ -12,7 +12,7 @@ as the artifact that CI pushes to GitHub Container Registry.
 - **Fast container publishing** - `nix2container` produces an OCI image description that `skopeo`
   uploads directly; no Docker daemon, no tar streams.
 - **Devcontainer-first** - `.devcontainer/devcontainer.json` points straight at the published image,
-  so the environment that launches in Codespaces matches what CI pushes upstream.
+  so the environment that launches in Codespaces matches what CI pushes upstream. Devcontainer features (common-utils, git, Docker-in-Docker) finish configuring the workspace user and Docker tooling at runtime.
 - **Editor-ready settings** - `nix build .#editor-settings` emits the exact VS Code configuration
   used inside the image, including absolute store paths for direnv/neovim integrations.
 
@@ -68,9 +68,7 @@ Defined in `flake.nix`:
 
 - **Base tools** (`tools` list) - bash, coreutils, git, nix, ripgrep, fd, jq, neovim, skopeo,
   wrangler, network debuggers, etc.
-- **Docker compatibility layer** - `dockerTools` paths provide `/bin/sh`, `/usr/bin/env`, CA certs, and NSS data so devcontainer features (like Docker-in-Docker) install cleanly.
-- **NSS + users layer** - creates `root` and `vscode` users, sudo privileges, and sane
-  `/etc/nsswitch.conf`.
+- **Base image** - builds on top of `debian:bookworm`, satisfying the Docker-in-Docker feature’s `apt`/`dpkg` requirements.
 - **VS Code layer** - drops the machine settings JSON under
   `/home/vscode/.vscode-server/data/Machine/settings.json` with correct store paths for direnv and
   neovim.

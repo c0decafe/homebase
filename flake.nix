@@ -33,35 +33,6 @@
           codex
         ];
 
-        fakeNssExtended = pkgs.dockerTools.fakeNss.override {
-          extraPasswdLines = [
-            "vscode:x:1000:1000:VS Code:/home/vscode:/bin/bash"
-          ];
-          extraGroupLines = [
-            "vscode:x:1000:"
-            "sudo:x:27:vscode"
-            "docker:x:998:vscode"
-          ];
-        };
-
-        osRelease = pkgs.runCommand "os-release" {} ''
-          mkdir -p $out/etc
-          cat > $out/etc/os-release <<'EOF'
-NAME="homebase (nix2container)"
-ID=homebase
-PRETTY_NAME="homebase (nix2container)"
-HOME_URL="https://github.com/c0decafe/homebase"
-EOF
-        '';
-
-        dockerCompatPaths = [
-          pkgs.dockerTools.usrBinEnv
-          pkgs.dockerTools.binSh
-          pkgs.dockerTools.caCertificates
-          fakeNssExtended
-          osRelease
-        ];
-
         # VS Code Machine settings for vscode (absolute store paths to nvim/direnv)
         vscodeMachineSettings = pkgs.writeText "vscode-machine-settings.json" (builtins.toJSON {
           "direnv.path.executable" = "${pkgs.direnv}/bin/direnv";
@@ -82,49 +53,6 @@ EOF
           };
         };
 
-        compatLayer = buildLayer {
-          copyToRoot = pkgs.buildEnv {
-            name = "homebase-compat";
-            paths = dockerCompatPaths;
-            pathsToLink = [ "/bin" "/usr" "/etc" ];
-          };
-        };
-
-        homeLayer = buildLayer {
-          copyToRoot = pkgs.runCommand "homebase-home" {} ''
-            mkdir -p $out/etc/sudoers.d
-            mkdir -p $out/home/vscode $out/workspaces
-            echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/vscode
-            chmod 0440 $out/etc/sudoers.d/vscode
-
-            cat >> $out/home/vscode/.bashrc <<'EOF'
-if command -v direnv >/dev/null 2>&1; then
-  eval "$(direnv hook bash)"
-fi
-EOF
-            cat >> $out/home/vscode/.zshrc <<'EOF'
-if command -v direnv >/dev/null 2>&1; then
-  eval "$(direnv hook zsh)"
-fi
-EOF
-          '';
-          # Ownership + sane modes (no 0777) applied at layer creation
-          perms = [
-            { path = "copyToRoot"; regex = "^/home/vscode(/.*)?$"; uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
-            { path = "copyToRoot"; regex = "^/workspaces(/.*)?$";  uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
-          ];
-        };
-
-        vscodeLayer = buildLayer {
-          copyToRoot = pkgs.runCommand "homebase-vscode" {} ''
-            install -Dm0644 ${vscodeMachineSettings} \
-              $out/home/vscode/.vscode-server/data/Machine/settings.json
-          '';
-          perms = [
-            { path = "copyToRoot"; regex = "^/home/vscode(/.*)?$"; uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
-          ];
-        };
-
         nixConfigLayer = buildLayer {
           copyToRoot = pkgs.runCommand "homebase-nix-config" {} ''
             install -Dm0644 ${pkgs.writeText "nix.conf" ''
@@ -141,7 +69,8 @@ EOF
         packages.homebase = buildImage {
           name   = "homebase";
           tag    = "latest";
-          layers = [ compatLayer baseLayer homeLayer vscodeLayer nixConfigLayer ];
+          fromImage = "docker.io/library/debian:bookworm";
+          layers = [ baseLayer nixConfigLayer ];
 
           config = {
             Env = [
