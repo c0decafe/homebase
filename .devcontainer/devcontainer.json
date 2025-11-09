@@ -1,11 +1,7 @@
 {
   "name": "nix-homebase",
   "image": "ghcr.io/c0decafe/homebase:latest",
-  "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {
-      "moby": true
-    }
-  },
+  "features": {},
   "customizations": {
     "vscode": {
       "extensions": [
@@ -48,5 +44,6 @@
         "telemetry.telemetryLevel": "off"
       }
     }
-  }
+  },
+  "postStartCommand": "sudo /usr/local/share/docker-init.sh || true"
 }

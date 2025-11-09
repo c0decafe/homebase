@@ -27,6 +27,13 @@
           rsync rclone skopeo
           wrangler
           nixVersions.stable
+          docker
+          docker-compose
+          containerd
+          runc
+          pigz
+          iptables
+          sudo
           codex
         ];
 
@@ -76,6 +83,27 @@ if type -q direnv
   eval (direnv hook fish)
 end
 EOF
+            install -Dm0755 ${pkgs.writeScript "docker-init.sh" ''
+              #!/usr/bin/env bash
+              set -euo pipefail
+
+              export PATH=${pkgs.lib.makeBinPath [ pkgs.docker pkgs.containerd pkgs.runc pkgs.iptables pkgs.pigz ]}:$PATH
+
+              mkdir -p /var/lib/docker
+              export DOCKER_RAMDISK=yes
+
+              if [ -d /sys/kernel/security ] && ! mountpoint -q /sys/kernel/security; then
+                mount -t securityfs none /sys/kernel/security || echo "WARN: could not mount securityfs" >&2
+              fi
+
+              if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
+                mkdir -p /sys/fs/cgroup/init
+                xargs -rn1 < /sys/fs/cgroup/cgroup.procs > /sys/fs/cgroup/init/cgroup.procs || true
+                sed -e 's/ / +/g' -e 's/^/+/' < /sys/fs/cgroup/cgroup.controllers > /sys/fs/cgroup/cgroup.subtree_control
+              fi
+
+              dockerd --host=unix:///var/run/docker.sock > /tmp/dockerd.log 2>&1 &
+            ''} $out/usr/local/share/docker-init.sh
           '';
           perms = [
             { path = "copyToRoot"; regex = "^/home/vscode(/.*)?$"; uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
