@@ -27,6 +27,7 @@
           direnv nix-direnv
           rsync rclone skopeo
           gh wrangler
+          fish
           nixVersions.stable
           sudo
           iproute2 iputils traceroute mtr whois mosh lsof
@@ -57,6 +58,9 @@
           copyToRoot = pkgs.runCommand "homebase-home" {} ''
             mkdir -p $out/etc/sudoers.d
             mkdir -p $out/home/vscode $out/workspaces
+            mkdir -p $out/home/vscode/.config/fish/conf.d
+            grep -q '^vscode:' /etc/passwd || echo "vscode:x:1000:1000:VS Code:/home/vscode:${pkgs.fish}/bin/fish" >> $out/etc/passwd
+            grep -q '^vscode:' /etc/group || echo "vscode:x:1000:" >> $out/etc/group
             echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/vscode
             chmod 0440 $out/etc/sudoers.d/vscode
 
@@ -69,6 +73,14 @@ EOF
 if command -v direnv >/dev/null 2>&1; then
   eval "$(direnv hook zsh)"
 fi
+EOF
+            cat > $out/home/vscode/.config/fish/conf.d/nix.fish <<'EOF'
+if test -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
+  source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
+end
+if type -q direnv
+  eval (direnv hook fish)
+end
 EOF
           '';
           perms = [
@@ -110,12 +122,11 @@ EOF
             arch = "amd64";
             os = "linux";
           };
-          layers = [ baseLayer homeLayer vscodeLayer nixConfigLayer ];
+          layers = [ compatLayer baseLayer homeLayer vscodeLayer nixConfigLayer ];
 
           config = {
             Env = [
               "PATH=/bin"
-              "SHELL=/bin/bash"
               "EDITOR=nvim"
               "PAGER=less"
               "LC_ALL=C"

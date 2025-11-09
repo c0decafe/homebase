@@ -69,6 +69,7 @@ Defined in `flake.nix`:
 - **Base tools** (`tools` list) - bash, coreutils, git, nix, ripgrep, fd, jq, neovim, skopeo,
   wrangler, network debuggers, etc.
 - **Base image** - builds on top of `debian:bookworm`, satisfying the Docker-in-Docker feature’s `apt`/`dpkg` requirements.
+- **Home/user layer** - ensures the `vscode` user exists with sudo privileges, fish/direnv hooks, and ready-to-use workspace directories.
 - **VS Code layer** - drops the machine settings JSON under
   `/home/vscode/.vscode-server/data/Machine/settings.json` with correct store paths for direnv and
   neovim.
