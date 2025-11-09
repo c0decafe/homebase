@@ -22,15 +22,11 @@
         # ---- Base tools (lean) ----
         tools = with pkgs; [
           bashInteractive coreutils findutils gnugrep gawk
-          git openssh curl wget
           neovim ripgrep fd jq eza tree which gnused gnutar gzip xz
           direnv nix-direnv
           rsync rclone skopeo
-          gh wrangler
-          fish
+          wrangler
           nixVersions.stable
-          sudo
-          iproute2 iputils traceroute mtr whois mosh lsof
           codex
         ];
 
@@ -59,8 +55,6 @@
             mkdir -p $out/etc/sudoers.d
             mkdir -p $out/home/vscode $out/workspaces
             mkdir -p $out/home/vscode/.config/fish/conf.d
-            grep -q '^vscode:' /etc/passwd || echo "vscode:x:1000:1000:VS Code:/home/vscode:${pkgs.fish}/bin/fish" >> $out/etc/passwd
-            grep -q '^vscode:' /etc/group || echo "vscode:x:1000:" >> $out/etc/group
             echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/vscode
             chmod 0440 $out/etc/sudoers.d/vscode
 
