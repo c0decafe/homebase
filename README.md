@@ -59,7 +59,7 @@ nix build .#editor-settings
 ### ChatGPT / Codex integration
 
 - The devcontainer installs the official `openai.chatgpt` extension.
-- Set `OPENAI_API_KEY` as a GitHub Codespaces secret (or locally in your shell) before launching; the container will warn at startup if it's missing.
+- Set `OPENAI_API_KEY` as a GitHub Codespaces secret (or locally in your shell) before launching; the extension will prompt once if it needs a token.
 - Inside VS Code run “OpenAI: Set API Key” once; the extension will reuse the stored token afterward.
 
 ## Image contents
@@ -68,6 +68,7 @@ Defined in `flake.nix`:
 
 - **Base tools** (`tools` list) - bash, coreutils, git, nix, ripgrep, fd, jq, neovim, skopeo,
   wrangler, network debuggers, etc.
+- **Docker compatibility layer** - `dockerTools` paths provide `/bin/sh`, `/usr/bin/env`, CA certs, and NSS data so devcontainer features (like Docker-in-Docker) install cleanly.
 - **NSS + users layer** - creates `root` and `vscode` users, sudo privileges, and sane
   `/etc/nsswitch.conf`.
 - **VS Code layer** - drops the machine settings JSON under

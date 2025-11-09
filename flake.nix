@@ -33,11 +33,21 @@
           codex
         ];
 
-        dockerCompatPaths = with pkgs.dockerTools; [
-          usrBinEnv
-          binSh
-          caCertificates
-          fakeNss
+        fakeNssExtended = pkgs.dockerTools.fakeNss.override {
+          extraPasswdLines = [
+            "vscode:x:1000:1000:VS Code:/home/vscode:/bin/bash"
+          ];
+          extraGroupLines = [
+            "vscode:x:1000:"
+            "sudo:x:27:vscode"
+          ];
+        };
+
+        dockerCompatPaths = [
+          pkgs.dockerTools.usrBinEnv
+          pkgs.dockerTools.binSh
+          pkgs.dockerTools.caCertificates
+          fakeNssExtended
         ];
 
         # VS Code Machine settings for vscode (absolute store paths to nvim/direnv)
@@ -68,37 +78,10 @@
           };
         };
 
-        nssLayer = buildLayer {
-          copyToRoot = pkgs.runCommand "homebase-nss" {} ''
-            mkdir -p $out/etc
-            cat > $out/etc/nsswitch.conf <<'EOF'
-passwd: files
-group:  files
-shadow: files
-hosts:  files dns
-networks: files
-services: files
-protocols: files
-ethers: files
-rpc: files
-netgroup: files
-EOF
-          '';
-        };
-
-        usersLayer = buildLayer {
-          copyToRoot = pkgs.runCommand "homebase-users" {} ''
-            mkdir -p $out/etc $out/etc/sudoers.d
+        homeLayer = buildLayer {
+          copyToRoot = pkgs.runCommand "homebase-home" {} ''
+            mkdir -p $out/etc/sudoers.d
             mkdir -p $out/home/vscode $out/workspaces
-            cat > $out/etc/passwd <<'EOF'
-root:x:0:0:root:/root:/bin/bash
-vscode:x:1000:1000:VS Code:/home/vscode:/bin/bash
-EOF
-            cat > $out/etc/group <<'EOF'
-root:x:0:
-vscode:x:1000:
-sudo:x:27:vscode
-EOF
             echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/vscode
             chmod 0440 $out/etc/sudoers.d/vscode
 
@@ -146,7 +129,7 @@ EOF
         packages.homebase = buildImage {
           name   = "homebase";
           tag    = "latest";
-          layers = [ compatLayer baseLayer nssLayer usersLayer vscodeLayer nixConfigLayer ];
+          layers = [ compatLayer baseLayer homeLayer vscodeLayer nixConfigLayer ];
 
           config = {
             Env = [
