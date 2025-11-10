@@ -240,23 +240,24 @@ EOF
               fi
             ''} $out/usr/local/bin/dev-startup.sh
 
-            install -Dm0755 ${pkgs.writeScript "browser-launcher" ''
+            install -Dm0755 ${pkgs.writeScript "desktop-init.sh" ''
               #!/usr/bin/env bash
               set -euo pipefail
 
-              export PATH=${pkgs.lib.makeBinPath [ pkgs.firefox pkgs.x11vnc pkgs.novnc pkgs.xorg.xvfb pkgs.busybox ]}:$PATH
+              export PATH=${pkgs.lib.makeBinPath [ pkgs.firefox pkgs.x11vnc pkgs.novnc pkgs.xorg.xvfb pkgs.busybox pkgs.python3Packages.websockify ]}:$PATH
 
               XVFB_DISPLAY="${DISPLAY:-:99}"
               XVFB_W="1280"
               XVFB_H="768"
               XVFB_DPI="96"
+              NOVNC_PORT="${NOVNC_PORT:-6080}"
 
               if pgrep -f "Xvfb $XVFB_DISPLAY" >/dev/null; then
                 echo "Browser session already running on display $XVFB_DISPLAY" >&2
                 exit 0
               fi
 
-              Xvfb $XVFB_DISPLAY -screen 0 xx24 -dpi $XVFB_DPI >/tmp/xvfb.log 2>&1 &
+              Xvfb $XVFB_DISPLAY -screen 0 ${XVFB_W}x${XVFB_H}x24 -dpi $XVFB_DPI >/tmp/xvfb.log 2>&1 &
               XVFB_PID=$!
               sleep 1
 
@@ -264,10 +265,16 @@ EOF
 
               x11vnc -display $XVFB_DISPLAY -localhost -nopw -forever -shared -bg >/tmp/x11vnc.log 2>&1
 
-              /usr/bin/websockify --web ${pkgs.novnc}/lib/python*/site-packages/novnc $PORT 127.0.0.1:5900
+              if command -v websockify >/dev/null 2>&1; then
+                websockify --web ${pkgs.novnc}/share/novnc $NOVNC_PORT 127.0.0.1:5900 >/tmp/websockify.log 2>&1 &
+              else
+                echo "websockify not available in PATH" >&2
+                kill $XVFB_PID || true
+                exit 1
+              fi
 
               wait $XVFB_PID
-            ''} $out/usr/local/bin/browser-launcher
+            ''} $out/usr/local/share/desktop-init.sh
           '';
           perms = [
             { path = "copyToRoot"; regex = "^/home/vscode(/.*)?$"; uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
