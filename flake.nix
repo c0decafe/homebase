@@ -270,13 +270,13 @@ EOF
                 exit 0
               fi
 
-              Xvfb $XVFB_DISPLAY -screen 0 ${XVFB_W}x${XVFB_H}x24 -dpi $XVFB_DPI >/tmp/xvfb.log 2>&1 &
+              Xvfb "$XVFB_DISPLAY" -screen 0 ''${XVFB_W}x''${XVFB_H}x24 -dpi "$XVFB_DPI" >/tmp/xvfb.log 2>&1 &
               XVFB_PID=$!
               sleep 1
 
-              DISPLAY=$XVFB_DISPLAY firefox >/tmp/firefox.log 2>&1 &
+              DISPLAY="$XVFB_DISPLAY" firefox >/tmp/firefox.log 2>&1 &
 
-              x11vnc -display $XVFB_DISPLAY -localhost -nopw -forever -shared -bg >/tmp/x11vnc.log 2>&1
+              x11vnc -display "$XVFB_DISPLAY" -localhost -nopw -forever -shared -bg >/tmp/x11vnc.log 2>&1
 
               if command -v websockify >/dev/null 2>&1; then
                 websockify --web ${pkgs.novnc}/share/novnc $NOVNC_PORT 127.0.0.1:5900 >/tmp/websockify.log 2>&1 &
