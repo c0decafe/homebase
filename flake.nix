@@ -34,6 +34,8 @@
           runc
           pigz
           iptables
+          pandoc
+          gitAndTools.git-lfs
           sudo
           fish
           codex
