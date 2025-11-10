@@ -44,5 +44,6 @@
         "telemetry.telemetryLevel": "off"
       }
     }
-  }
+  },
+  "postStartCommand": "sudo /usr/local/share/ssh-init.sh || true"
 }
