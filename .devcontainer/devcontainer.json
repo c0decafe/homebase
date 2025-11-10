@@ -45,5 +45,5 @@
       }
     }
   },
-  "postStartCommand": "sudo /usr/local/share/docker-init.sh || true"
+  "postStartCommand": "sudo /usr/local/bin/dev-startup.sh || true"
 }
