@@ -94,12 +94,25 @@
           copyToRoot = pkgs.runCommand "homebase-home" {} ''
             mkdir -p $out/etc/sudoers.d
             mkdir -p $out/etc/ssh
+            mkdir -p $out/etc
             mkdir -p $out/usr/local/bin
             mkdir -p $out/usr/local/share
             mkdir -p $out/home/vscode $out/workspaces
             mkdir -p $out/home/vscode/.config/fish/conf.d
             echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/vscode
             chmod 0440 $out/etc/sudoers.d/vscode
+
+            cat > $out/etc/os-release <<'EOF'
+NAME="Homebase (Nix)"
+PRETTY_NAME="Homebase (Nix) Codespace Image"
+ID=homebase
+ID_LIKE=nixos
+HOME_URL="https://github.com/c0decafe/homebase"
+SUPPORT_URL="https://github.com/c0decafe/homebase/issues"
+BUG_REPORT_URL="https://github.com/c0decafe/homebase/issues"
+VERSION_ID="25.05"
+VERSION="nixos-25.05-small"
+EOF
 
             cat >> $out/home/vscode/.bashrc <<'EOF'
 if command -v direnv >/dev/null 2>&1; then
