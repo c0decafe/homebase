@@ -36,6 +36,10 @@
           iptables
           pandoc
           gitAndTools.git-lfs
+          firefox
+          x11vnc
+          novnc
+          xorg.xvfb
           sudo
           fish
           codex
@@ -168,6 +172,35 @@ EOF
               echo "dockerd failed to start" >&2
               exit 1
             ''} $out/usr/local/share/docker-init.sh
+
+            install -Dm0755 ${pkgs.writeScript "browser-launcher" ''
+              #!/usr/bin/env bash
+              set -euo pipefail
+
+              export PATH=${pkgs.lib.makeBinPath [ pkgs.firefox pkgs.x11vnc pkgs.novnc pkgs.xorg.xvfb pkgs.busybox ]}:$PATH
+
+              XVFB_DISPLAY=${DISPLAY:-:99}
+              XVFB_W=1280
+              XVFB_H=768
+              XVFB_DPI=96
+
+              if pgrep -f "Xvfb $XVFB_DISPLAY" >/dev/null; then
+                echo "Browser session already running on display $XVFB_DISPLAY" >&2
+                exit 0
+              fi
+
+              Xvfb $XVFB_DISPLAY -screen 0 ${XVFB_W}x${XVFB_H}x24 -dpi $XVFB_DPI >/tmp/xvfb.log 2>&1 &
+              XVFB_PID=$!
+              sleep 1
+
+              DISPLAY=$XVFB_DISPLAY firefox >/tmp/firefox.log 2>&1 &
+
+              x11vnc -display $XVFB_DISPLAY -localhost -nopw -forever -shared -bg >/tmp/x11vnc.log 2>&1
+
+              /usr/bin/websockify --web ${pkgs.novnc}/lib/python*/site-packages/novnc $PORT 127.0.0.1:5900
+
+              wait $XVFB_PID
+            ''} $out/usr/local/bin/browser-launcher
           '';
           perms = [
             { path = "copyToRoot"; regex = "^/home/vscode(/.*)?$"; uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
