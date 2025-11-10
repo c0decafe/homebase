@@ -189,7 +189,7 @@ EOF
                 exit 0
               fi
 
-              Xvfb $XVFB_DISPLAY -screen 0 ${XVFB_W}x${XVFB_H}x24 -dpi $XVFB_DPI >/tmp/xvfb.log 2>&1 &
+              Xvfb $XVFB_DISPLAY -screen 0 xx24 -dpi $XVFB_DPI >/tmp/xvfb.log 2>&1 &
               XVFB_PID=$!
               sleep 1
 
