@@ -180,9 +180,9 @@ EOF
               export PATH=${pkgs.lib.makeBinPath [ pkgs.firefox pkgs.x11vnc pkgs.novnc pkgs.xorg.xvfb pkgs.busybox ]}:$PATH
 
               XVFB_DISPLAY=${DISPLAY:-:99}
-              XVFB_W=1280
-              XVFB_H=768
-              XVFB_DPI=96
+              XVFB_W=${toString 1280}
+              XVFB_H=${toString 768}
+              XVFB_DPI=${toString 96}
 
               if pgrep -f "Xvfb $XVFB_DISPLAY" >/dev/null; then
                 echo "Browser session already running on display $XVFB_DISPLAY" >&2
