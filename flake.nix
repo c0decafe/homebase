@@ -196,30 +196,40 @@ EOF
               exit 1
             ''} $out/usr/local/share/docker-init.sh
 
-            install -Dm0755 ${pkgs.writeScript "sshd-init.sh" ''
+            install -Dm0755 ${pkgs.writeScript "ssh-init.sh" ''
               #!/usr/bin/env bash
               set -euo pipefail
 
-              export PATH=${pkgs.lib.makeBinPath [ pkgs.openssh pkgs.coreutils pkgs.util-linux ]}:$PATH
+              export PATH=${pkgs.lib.makeBinPath [ pkgs.procps pkgs.coreutils pkgs.openssh pkgs.util-linux ]}:$PATH
 
-              mkdir -p /var/run/sshd
-              chmod 0755 /var/run/sshd
+              sudoIf() {
+                if [ "$(id -u)" -ne 0 ]; then
+                  sudo "$@"
+                else
+                  "$@"
+                fi
+              }
+
+              sudoIf mkdir -p /var/run/sshd
+              sudoIf chmod 0755 /var/run/sshd
 
               if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then
-                ssh-keygen -A
+                sudoIf ${pkgs.openssh}/bin/ssh-keygen -A
               fi
 
-              chmod 0600 /etc/ssh/ssh_host_*_key || true
-              chmod 0644 /etc/ssh/ssh_host_*_key.pub || true
-            ''} $out/usr/local/share/sshd-init.sh
+              sudoIf chmod 0600 /etc/ssh/ssh_host_*_key || true
+              sudoIf chmod 0644 /etc/ssh/ssh_host_*_key.pub || true
 
-            install -Dm0755 ${pkgs.writeScript "sshd-start.sh" ''
-              #!/usr/bin/env bash
-              set -euo pipefail
+              if pgrep -x sshd >/dev/null 2>&1; then
+                :
+              else
+                sudoIf sh -c '${pkgs.openssh}/bin/sshd -f /etc/ssh/sshd_config -D >> /tmp/sshd.log 2>&1 &' 
+              fi
 
-              export PATH=${pkgs.lib.makeBinPath [ pkgs.openssh pkgs.coreutils ]}:$PATH
-              exec ${pkgs.openssh}/bin/sshd -D -f /etc/ssh/sshd_config "$@"
-            ''} $out/usr/local/bin/sshd-start.sh
+              if [ "$#" -gt 0 ]; then
+                exec "$@"
+              fi
+            ''} $out/usr/local/share/ssh-init.sh
 
             install -Dm0755 ${pkgs.writeScript "dev-startup.sh" ''
               #!/usr/bin/env bash
@@ -227,10 +237,6 @@ EOF
 
               if [ -x /usr/local/share/docker-init.sh ]; then
                 /usr/local/share/docker-init.sh || true
-              fi
-
-              if [ -x /usr/local/share/sshd-init.sh ]; then
-                /usr/local/share/sshd-init.sh || true
               fi
             ''} $out/usr/local/bin/dev-startup.sh
 
