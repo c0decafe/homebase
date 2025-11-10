@@ -263,7 +263,7 @@ EOF
               XVFB_W="1280"
               XVFB_H="768"
               XVFB_DPI="96"
-              NOVNC_PORT="${NOVNC_PORT:-6080}"
+              NOVNC_PORT="''${NOVNC_PORT:-6080}"
 
               if pgrep -f "Xvfb $XVFB_DISPLAY" >/dev/null; then
                 echo "Browser session already running on display $XVFB_DISPLAY" >&2
