@@ -44,6 +44,5 @@
         "telemetry.telemetryLevel": "off"
       }
     }
-  },
-  "postStartCommand": "sudo /usr/local/bin/dev-startup.sh || true"
+  }
 }
