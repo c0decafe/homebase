@@ -144,16 +144,6 @@
           '';
         };
 
-        sudoLayer = pkgs.dockerTools.buildLayer {
-          name = "setuid-sudo";
-          fakeRootCommands = ''
-            mkdir -p $out/bin
-            cp ${pkgs.sudo}/bin/sudo $out/bin/sudo
-            chown 0:0 $out/bin/sudo
-            chmod 4755 $out/bin/sudo
-          '';
-        };
-
         compatLayer = buildLayer {
           copyToRoot = pkgs.buildEnv {
             name = "homebase-compat";
@@ -424,7 +414,6 @@ EOF
             vscodeLayer
             nixConfigLayer
           ];
-          additionalLayers = [ sudoLayer ];
 
           config = {
             Env = [
@@ -445,6 +434,13 @@ EOF
               "org.opencontainers.image.source"      = "https://github.com/c0decafe/homebase";
             };
           };
+
+          extraCommands = ''
+            mkdir -p ./bin
+            cp ${pkgs.sudo}/bin/sudo ./bin/sudo
+            chown 0:0 ./bin/sudo
+            chmod 4755 ./bin/sudo
+          '';
 
           # Allow nix inside the running container
           initializeNixDatabase = true;
