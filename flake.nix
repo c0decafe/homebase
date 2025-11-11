@@ -144,6 +144,11 @@
           '';
         };
 
+        sudoRoot = pkgs.runCommand "homebase-sudo-root" {} ''
+          mkdir -p $out/bin
+          cp ${pkgs.sudo}/bin/sudo $out/bin/sudo
+        '';
+
         compatLayer = buildLayer {
           copyToRoot = pkgs.buildEnv {
             name = "homebase-compat";
@@ -414,6 +419,10 @@ EOF
             vscodeLayer
             nixConfigLayer
           ];
+          copyToRoot = [ sudoRoot ];
+          perms = [
+            { path = sudoRoot; regex = "^/bin/sudo$"; fileMode = "4755"; uid = 0; gid = 0; }
+          ];
 
           config = {
             Env = [
@@ -434,13 +443,6 @@ EOF
               "org.opencontainers.image.source"      = "https://github.com/c0decafe/homebase";
             };
           };
-
-          extraCommands = ''
-            mkdir -p ./bin
-            cp ${pkgs.sudo}/bin/sudo ./bin/sudo
-            chown 0:0 ./bin/sudo
-            chmod 4755 ./bin/sudo
-          '';
 
           # Allow nix inside the running container
           initializeNixDatabase = true;
