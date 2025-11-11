@@ -259,7 +259,7 @@ EOF
                   return 0
                 fi
 
-                ${pkgs.openssh}/bin/sshd -f /etc/ssh/sshd_config -D >> /tmp/sshd.log 2>&1 &
+                ${pkgs.openssh}/bin/sshd -f /etc/ssh/sshd_config -D &
                 ln -sf ${pkgs.openssh}/bin/sshd /usr/sbin/sshd || true
               }
 
@@ -304,7 +304,7 @@ EOF
                 fi
               }
 
-              sudoIf /etc/init.d/ssh start 2>&1 | sudoIf tee /tmp/sshd.log > /dev/null
+              sudoIf /etc/init.d/ssh start
 
               set +e
               if [ "$#" -gt 0 ]; then
