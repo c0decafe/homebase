@@ -33,13 +33,14 @@ jobs:
         run: docker run --rm --user root homebase:latest /usr/local/share/ssh-init.sh
 
       - name: Login to GHCR
-        env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ACTOR: ${{ github.actor }}
-        run: echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Expose Docker auth to skopeo
         run: echo "REGISTRY_AUTH_FILE=$HOME/.docker/config.json" >> "$GITHUB_ENV"
 
       - name: Push image to GHCR
-        run: nix run .#homebase.copyToRegistry -- docker://ghcr.io/c0decafe/homebase:latest
+        run: nix run .#homebase.copyToRegistry --no-sandbox
