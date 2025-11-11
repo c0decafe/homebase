@@ -85,7 +85,6 @@
                 rm $out/bin/sudo
               fi
               cp ${pkgs.sudo}/bin/sudo $out/bin/sudo
-              chown root:root $out/bin/sudo
               chmod 4755 $out/bin/sudo
             '';
           };
