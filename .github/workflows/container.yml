@@ -39,8 +39,5 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Expose Docker auth to skopeo
-        run: echo "REGISTRY_AUTH_FILE=$HOME/.docker/config.json" >> "$GITHUB_ENV"
-
       - name: Push image to GHCR
         run: nix run .#homebase.copyToRegistry --no-sandbox "docker://ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest"
