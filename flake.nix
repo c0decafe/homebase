@@ -396,7 +396,7 @@ EOF
         packages.homebase = buildImage {
           name   = "homebase";
           tag    = "latest";
-          layers = [ compatLayer baseLayer homeLayer vscodeLayer nixConfigLayer ];
+          layers = [ compatLayer baseLayer sudoLayer homeLayer vscodeLayer nixConfigLayer ];
 
           config = {
             Env = [
