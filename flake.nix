@@ -20,29 +20,26 @@
         buildLayer = n2c.nix2container.buildLayer;
 
         # ---- Base tools (lean) ----
-        tools = with pkgs; [
+        runtimeTools = with pkgs; [
           bashInteractive coreutils findutils gnugrep gawk
-          git openssh curl wget
-          neovim ripgrep fd jq eza tree which gnused gnutar gzip xz
-          direnv nix-direnv
-          rsync rclone skopeo
-          nixVersions.stable
-          docker
-          docker-compose
-          containerd
-          runc
-          pigz
-          iptables
-          pandoc
-          gitAndTools.git-lfs
-          firefox
-          x11vnc
-          novnc
-          xorg.xvfb
-          pam
-          fish
-          codex
+          curl wget jq tree which gnused gnutar gzip xz pigz iptables
         ];
+
+        editorTools = with pkgs; [
+          git neovim ripgrep fd direnv nix-direnv fish codex pandoc
+          gitAndTools.git-lfs
+        ];
+
+        containerTools = with pkgs; [
+          docker docker-compose containerd runc skopeo rsync rclone
+          nixVersions.stable
+        ];
+
+        desktopTools = with pkgs; [
+          firefox x11vnc novnc xorg.xvfb
+        ];
+
+        tools = runtimeTools ++ editorTools ++ containerTools ++ desktopTools;
 
         fakeNssExtended = pkgs.dockerTools.fakeNss.override {
           extraPasswdLines = [
@@ -76,7 +73,31 @@
         baseLayer = buildLayer {
           copyToRoot = pkgs.buildEnv {
             name = "homebase-base";
-            paths = tools;
+            paths = runtimeTools;
+            pathsToLink = [ "/bin" "/share" ];
+          };
+        };
+
+        editorLayer = buildLayer {
+          copyToRoot = pkgs.buildEnv {
+            name = "homebase-editor";
+            paths = editorTools;
+            pathsToLink = [ "/bin" "/share" ];
+          };
+        };
+
+        containerLayer = buildLayer {
+          copyToRoot = pkgs.buildEnv {
+            name = "homebase-container";
+            paths = containerTools;
+            pathsToLink = [ "/bin" "/share" ];
+          };
+        };
+
+        desktopLayer = buildLayer {
+          copyToRoot = pkgs.buildEnv {
+            name = "homebase-desktop";
+            paths = desktopTools;
             pathsToLink = [ "/bin" "/share" ];
           };
         };
@@ -395,7 +416,17 @@ EOF
         packages.homebase = buildImage {
           name   = "homebase";
           tag    = "latest";
-          layers = [ compatLayer baseLayer sudoLayer homeLayer vscodeLayer nixConfigLayer ];
+          layers = [
+            compatLayer
+            baseLayer
+            editorLayer
+            containerLayer
+            desktopLayer
+            sudoLayer
+            homeLayer
+            vscodeLayer
+            nixConfigLayer
+          ];
 
           config = {
             Env = [
