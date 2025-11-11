@@ -408,9 +408,9 @@ EOF
           layers = [
             compatLayer
             baseLayer
-            editorLayer
-            containerLayer
-            desktopLayer
+            # editorLayer
+            # containerLayer
+            # desktopLayer
             sudoLayer
             homeLayer
             vscodeLayer
