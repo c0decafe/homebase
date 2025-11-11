@@ -26,11 +26,6 @@ jobs:
       - name: Build image tarball
         run: nix build -L --no-write-lock-file .#homebase
 
-#      - name: Load into Docker daemon
-#        run: nix run .#homebase.copyToDockerDaemon
-
-#      - name: Smoke test ssh-init
-#        run: docker run --rm --user root ghcr.io/c0decafe/homebase:latest /usr/local/share/ssh-init.sh
 
       - name: Login to GHCR
         uses: docker/login-action@v2
