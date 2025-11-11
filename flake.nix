@@ -144,14 +144,14 @@
           '';
         };
 
-        sudoLayer = buildLayer {
-          copyToRoot = pkgs.runCommand "homebase-sudo" { buildInputs = [ pkgs.fakeroot ]; } ''
+        sudoLayer = pkgs.dockerTools.buildLayer {
+          name = "setuid-sudo";
+          fakeRootCommands = ''
             mkdir -p $out/bin
-            fakeroot -- sh -c 'install -m4755 ${pkgs.sudo}/bin/sudo $out/bin/sudo'
+            cp ${pkgs.sudo}/bin/sudo $out/bin/sudo
+            chown 0:0 $out/bin/sudo
+            chmod 4755 $out/bin/sudo
           '';
-          perms = [
-            { path = "copyToRoot"; regex = "^/bin/sudo$"; fileMode = "4755"; uid = 0; gid = 0; }
-          ];
         };
 
         compatLayer = buildLayer {
