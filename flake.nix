@@ -82,13 +82,10 @@
         };
 
         sudoLayer = buildLayer {
-          copyToRoot = pkgs.runCommand "homebase-sudo" {} ''
+          copyToRoot = pkgs.runCommand "homebase-sudo" { buildInputs = [ pkgs.fakeroot ]; } ''
             mkdir -p $out/bin
-            install -m755 ${pkgs.sudo}/bin/sudo $out/bin/sudo
+            fakeroot -- sh -c 'install -m4755 ${pkgs.sudo}/bin/sudo $out/bin/sudo'
           '';
-          perms = [
-            { path = "copyToRoot"; regex = "^/bin/sudo$"; uid = 0; gid = 0; fileMode = "4755"; }
-          ];
         };
 
         compatLayer = buildLayer {
