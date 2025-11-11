@@ -409,7 +409,7 @@ EOF
         packages.editor-settings = vscodeMachineSettings;
 
         packages.homebase = buildImage {
-          name   = "homebase";
+          name   = "ghcr.io/c0decafe/homebase";
           tag    = "latest";
           layers = [
             compatLayer
