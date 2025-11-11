@@ -149,6 +149,13 @@
           cp ${pkgs.sudo}/bin/sudo $out/bin/sudo
         '';
 
+        sudoLayer = buildLayer {
+          copyToRoot = sudoRoot;
+          perms = [
+            { path = sudoRoot; regex = "^/bin/sudo$"; mode = "4755"; uid = 0; gid = 0; }
+          ];
+        };
+
         compatLayer = buildLayer {
           copyToRoot = pkgs.buildEnv {
             name = "homebase-compat";
@@ -411,6 +418,7 @@ EOF
           tag    = "latest";
           layers = [
             compatLayer
+            sudoLayer
             baseLayer
             # editorLayer
             # containerLayer
@@ -418,10 +426,6 @@ EOF
             homeLayer
             vscodeLayer
             nixConfigLayer
-          ];
-          copyToRoot = [ sudoRoot ];
-          perms = [
-            { path = sudoRoot; regex = "^/bin/sudo$"; fileMode = "4755"; uid = 0; gid = 0; }
           ];
 
           config = {
