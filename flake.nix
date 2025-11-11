@@ -48,6 +48,7 @@
           extraGroupLines = [
             "vscode:x:1000:"
             "docker:x:998:vscode"
+            "sudo:x:27:vscode"
           ];
         };
 
@@ -129,11 +130,23 @@
             mkdir -p $out/usr/sbin
             mkdir -p $out/tmp
             mkdir -p $out/var/run
+            mkdir -p $out/var/log
             mkdir -p $out/var/empty
             mkdir -p $out/home/vscode $out/workspaces
             mkdir -p $out/home/vscode/.config/fish/conf.d
-            echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/vscode
-            chmod 0440 $out/etc/sudoers.d/vscode
+            cat > $out/etc/sudoers <<'EOF'
+Defaults env_reset
+Defaults mail_badpass
+Defaults secure_path="/bin:/usr/bin:/usr/local/bin"
+
+root ALL=(ALL) ALL
+%sudo ALL=(ALL:ALL) NOPASSWD:ALL
+
+#includedir /etc/sudoers.d
+EOF
+            chmod 0440 $out/etc/sudoers
+            echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/99-vscode
+            chmod 0440 $out/etc/sudoers.d/99-vscode
 
             chmod 1777 $out/tmp
             chmod 0755 $out/var/run
@@ -260,83 +273,59 @@ EOF
               exit 1
             ''} $out/usr/local/share/docker-init.sh
 
-            install -Dm0755 ${pkgs.writeScript "ssh-service.sh" ''
-              #!/usr/bin/env bash
-              set -euo pipefail
-
-              export PATH=${pkgs.lib.makeBinPath [ pkgs.procps pkgs.coreutils pkgs.openssh pkgs.util-linux ]}:$PATH
-
-              ensure_keys() {
-                if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then
-                  ${pkgs.openssh}/bin/ssh-keygen -A
-                fi
-
-                chmod 0600 /etc/ssh/ssh_host_*_key || true
-                chmod 0644 /etc/ssh/ssh_host_*_key.pub || true
-              }
-
-              start() {
-                mkdir -p /var/run/sshd
-                chmod 0755 /var/run/sshd
-
-                ensure_keys
-
-                if pgrep -x sshd >/dev/null 2>&1; then
-                  echo "sshd already running"
-                  return 0
-                fi
-
-                ${pkgs.openssh}/bin/sshd -f /etc/ssh/sshd_config -D &
-                ln -sf ${pkgs.openssh}/bin/sshd /usr/sbin/sshd || true
-              }
-
-              stop() {
-                pkill sshd || true
-              }
-
-              case "$1" in
-                start|"")
-                  start
-                  ;;
-                stop)
-                  stop
-                  ;;
-                restart)
-                  stop
-                  start
-                  ;;
-                status)
-                  if pgrep -x sshd >/dev/null 2>&1; then
-                    exit 0
-                  else
-                    exit 1
-                  fi
-                  ;;
-                *)
-                  echo "Usage: $0 {start|stop|restart|status}" >&2
-                  exit 1
-                  ;;
-              esac
-            ''} $out/etc/init.d/ssh
-
             install -Dm0755 ${pkgs.writeScript "ssh-init.sh" ''
               #!/usr/bin/env bash
               set -euo pipefail
+              PATH=${pkgs.lib.makeBinPath [ pkgs.procps pkgs.coreutils pkgs.openssh pkgs.util-linux ]}:$PATH
 
-              sudoIf() {
-                if [ "$(id -u)" -ne 0 ]; then
-                  sudo "$@"
-                else
-                  "$@"
-                fi
-              }
+              log() { echo "[ssh-init] $*" >&2; }
+              fail() { log "$1"; exit 1; }
 
-              sudoIf /etc/init.d/ssh start
-
-              set +e
-              if [ "$#" -gt 0 ]; then
-                exec "$@"
+              if [ "$(id -u)" -ne 0 ]; then
+                fail "ssh-init must run as root (use sudo)"
               fi
+
+              if [ ! -x ${pkgs.openssh}/bin/sshd ]; then
+                fail "sshd binary missing"
+              fi
+
+              if [ ! -f /etc/ssh/sshd_config ]; then
+                fail "/etc/ssh/sshd_config not found"
+              fi
+
+              mkdir -p /var/run/sshd || fail "cannot create /var/run/sshd"
+              chmod 0755 /var/run/sshd || fail "cannot chmod /var/run/sshd"
+
+              if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then
+                log "generating host keys"
+                ${pkgs.openssh}/bin/ssh-keygen -A || fail "ssh-keygen failed"
+              fi
+
+              chmod 0600 /etc/ssh/ssh_host_*_key 2>/dev/null || true
+              chmod 0644 /etc/ssh/ssh_host_*_key.pub 2>/dev/null || true
+
+              if pgrep -x sshd >/dev/null 2>&1; then
+                log "sshd already running"
+                exit 0
+              fi
+
+              log "starting sshd"
+              ${pkgs.openssh}/bin/sshd -f /etc/ssh/sshd_config -D >/tmp/sshd.log 2>&1 &
+              pid=$!
+
+              for _ in $(seq 1 40); do
+                if pgrep -x sshd >/dev/null 2>&1; then
+                  log "sshd ready"
+                  exit 0
+                fi
+                if ! kill -0 "$pid" 2>/dev/null; then
+                  wait "$pid" || true
+                  fail "sshd exited before becoming ready; see /tmp/sshd.log"
+                fi
+                sleep 0.25
+              done
+
+              fail "sshd did not report ready in time"
             ''} $out/usr/local/share/ssh-init.sh
 
             install -Dm0755 ${pkgs.writeScript "dev-startup.sh" ''

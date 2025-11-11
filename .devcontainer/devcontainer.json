@@ -1,6 +1,10 @@
 {
   "name": "nix-homebase",
   "image": "ghcr.io/c0decafe/homebase:latest",
+  "runArgs": [
+    "--security-opt",
+    "no-new-privileges=false"
+  ],
   "features": {},
   "customizations": {
     "vscode": {
