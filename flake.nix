@@ -26,7 +26,6 @@
           neovim ripgrep fd jq eza tree which gnused gnutar gzip xz
           direnv nix-direnv
           rsync rclone skopeo
-          wrangler
           nixVersions.stable
           docker
           docker-compose
