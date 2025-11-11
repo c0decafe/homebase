@@ -133,7 +133,7 @@ account    sufficient pam_permit.so
 session    optional pam_permit.so
             ''} $out/etc/pam.d/sshd
 
-            cat > $out/etc/os-release <<'EOF'
+            cat > $out/etc/os-release <<EOF
 NAME="Homebase (Nix)"
 PRETTY_NAME="Homebase (Nix) Codespace Image"
 ID=homebase
@@ -143,6 +143,7 @@ SUPPORT_URL="https://github.com/c0decafe/homebase/issues"
 BUG_REPORT_URL="https://github.com/c0decafe/homebase/issues"
 VERSION_ID="25.05"
 VERSION="nixos-25.05-small"
+BUILD_ID="${self.rev or "dirty"}"
 EOF
 
             cat >> $out/home/vscode/.bashrc <<'EOF'
