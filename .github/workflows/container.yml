@@ -2,7 +2,7 @@ name: container
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   workflow_dispatch: {}
 
 permissions:
@@ -10,12 +10,10 @@ permissions:
   packages: write
 
 jobs:
-  build-and-push:
+  build-test-push:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Nix
         uses: cachix/install-nix-action@v27
@@ -25,23 +23,23 @@ jobs:
       - name: Flake checks
         run: nix flake check -L --no-write-lock-file
 
-      - name: Build homebase image (nix2container)
+      - name: Build image tarball
         run: nix build -L --no-write-lock-file .#homebase
 
-      - name: Login to GHCR (Docker auth)
+      - name: Load into Docker daemon
+        run: nix run .#homebase.copyToDockerDaemon -- homebase:test
+
+      - name: Smoke test ssh-init
+        run: docker run --rm homebase:test /usr/local/share/ssh-init.sh
+
+      - name: Login to GHCR
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACTOR: ${{ github.actor }}
-        run: |
-          echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+        run: echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
 
       - name: Expose Docker auth to skopeo
         run: echo "REGISTRY_AUTH_FILE=$HOME/.docker/config.json" >> "$GITHUB_ENV"
 
-      - name: Copy to Docker registry (GHCR) via nix2container
-        run: |
-          nix run .#homebase.copyTo -- docker://ghcr.io/c0decafe/homebase:latest
-
-      - name: Disk usage (debug)
-        if: always()
-        run: df -h
+      - name: Push image to GHCR
+        run: nix run .#homebase.copyToRegistry -- docker://ghcr.io/c0decafe/homebase:latest
