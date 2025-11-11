@@ -41,6 +41,7 @@
           novnc
           xorg.xvfb
           sudo
+          pam
           fish
           codex
         ];
@@ -94,13 +95,22 @@
           copyToRoot = pkgs.runCommand "homebase-home" {} ''
             mkdir -p $out/etc/sudoers.d
             mkdir -p $out/etc/ssh
+            mkdir -p $out/etc/pam.d
             mkdir -p $out/etc
             mkdir -p $out/usr/local/bin
             mkdir -p $out/usr/local/share
+            mkdir -p $out/lib
             mkdir -p $out/home/vscode $out/workspaces
             mkdir -p $out/home/vscode/.config/fish/conf.d
             echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/vscode
             chmod 0440 $out/etc/sudoers.d/vscode
+
+            ln -s ${pkgs.pam}/lib/security $out/lib/security
+            install -Dm0644 ${pkgs.writeText "sudo.pam" ''
+auth       sufficient pam_permit.so
+account    sufficient pam_permit.so
+session    optional pam_permit.so
+            ''} $out/etc/pam.d/sudo
 
             cat > $out/etc/os-release <<'EOF'
 NAME="Homebase (Nix)"
