@@ -420,11 +420,11 @@ EOF
             # editorLayer
             # containerLayer
             # desktopLayer
-            sudoLayer
             homeLayer
             vscodeLayer
             nixConfigLayer
           ];
+          additionalLayers = [ sudoLayer ];
 
           config = {
             Env = [
