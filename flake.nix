@@ -144,16 +144,44 @@
           '';
         };
 
-        sudoRoot = pkgs.runCommand "homebase-sudo-root" {} ''
-          mkdir -p $out/bin
-          cp ${pkgs.sudo}/bin/sudo $out/bin/sudo
-        '';
+        sudoBaseImage = pkgs.dockerTools.streamLayeredImage {
+          name = "ghcr.io/c0decafe/homebase-sudo";
+          tag  = "latest";
+          fakeRootCommands = ''
+            mkdir -p $out/bin
+            mkdir -p $out/etc/sudoers.d
+            mkdir -p $out/etc/pam.d
 
-        sudoLayer = buildLayer {
-          copyToRoot = sudoRoot;
-          perms = [
-            { path = sudoRoot; regex = "^/bin/sudo$"; mode = "4755"; uid = 0; gid = 0; }
-          ];
+            cp ${pkgs.sudo}/bin/sudo $out/bin/sudo
+            chown 0:0 $out/bin/sudo
+            chmod 4755 $out/bin/sudo
+
+            cat > $out/etc/sudoers <<'EOF'
+Defaults env_reset
+Defaults mail_badpass
+Defaults secure_path="/bin:/usr/bin:/usr/local/bin"
+
+root ALL=(ALL) ALL
+%sudo ALL=(ALL:ALL) NOPASSWD:ALL
+
+#includedir /etc/sudoers.d
+EOF
+            chmod 0440 $out/etc/sudoers
+
+            echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/99-vscode
+            chmod 0440 $out/etc/sudoers.d/99-vscode
+
+            install -Dm0644 ${pkgs.writeText "sudo.pam" ''
+auth       sufficient pam_permit.so
+account    sufficient pam_permit.so
+session    optional pam_permit.so
+            ''} $out/etc/pam.d/sudo
+          '';
+          config = {
+            Env = [ "PATH=/bin" ];
+            User = "root";
+            WorkingDir = "/";
+          };
         };
 
         compatLayer = buildLayer {
@@ -166,7 +194,6 @@
 
         homeLayer = buildLayer {
           copyToRoot = pkgs.runCommand "homebase-home" {} ''
-            mkdir -p $out/etc/sudoers.d
             mkdir -p $out/etc/ssh
             mkdir -p $out/etc/pam.d
             mkdir -p $out/etc
@@ -180,30 +207,11 @@
             mkdir -p $out/var/empty
             mkdir -p $out/home/vscode $out/workspaces
             mkdir -p $out/home/vscode/.config/fish/conf.d
-            cat > $out/etc/sudoers <<'EOF'
-Defaults env_reset
-Defaults mail_badpass
-Defaults secure_path="/bin:/usr/bin:/usr/local/bin"
-
-root ALL=(ALL) ALL
-%sudo ALL=(ALL:ALL) NOPASSWD:ALL
-
-#includedir /etc/sudoers.d
-EOF
-            chmod 0440 $out/etc/sudoers
-            echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/99-vscode
-            chmod 0440 $out/etc/sudoers.d/99-vscode
-
             chmod 1777 $out/tmp
             chmod 0755 $out/var/run
             chmod 0755 $out/var/empty
 
             ln -sf ${pkgs.pam}/lib/security $out/lib/security
-            install -Dm0644 ${pkgs.writeText "sudo.pam" ''
-auth       sufficient pam_permit.so
-account    sufficient pam_permit.so
-session    optional pam_permit.so
-            ''} $out/etc/pam.d/sudo
 
             install -Dm0644 ${pkgs.writeText "sshd.pam" ''
 auth       sufficient pam_permit.so
@@ -412,13 +420,14 @@ EOF
 
       in rec {
         packages.editor-settings = vscodeMachineSettings;
+        packages."homebase-sudo" = sudoBaseImage;
 
         packages.homebase = buildImage {
           name   = "ghcr.io/c0decafe/homebase";
           tag    = "latest";
+          fromImage = sudoBaseImage;
           layers = [
             compatLayer
-            sudoLayer
             baseLayer
             # editorLayer
             # containerLayer

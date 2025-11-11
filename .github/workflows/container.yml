@@ -10,7 +10,34 @@ permissions:
   packages: write
 
 jobs:
+  sudo-base:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-25.05-small
+
+      - name: Build sudo base image stream
+        run: nix build -L --no-write-lock-file .#homebase-sudo
+
+      - name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Load and push sudo base image
+        run: |
+          set -euo pipefail
+          ./result | docker load
+          docker push ghcr.io/${{ github.repository_owner }}/homebase-sudo:latest
+
   build-test-push:
+    needs: sudo-base
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
