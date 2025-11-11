@@ -30,7 +30,7 @@ jobs:
         run: nix run .#homebase.copyToDockerDaemon
 
       - name: Smoke test ssh-init
-        run: docker run --rm homebase:latest /usr/local/share/ssh-init.sh
+        run: docker run --rm --user root homebase:latest /usr/local/share/ssh-init.sh
 
       - name: Login to GHCR
         env:
