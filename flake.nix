@@ -100,17 +100,31 @@
             mkdir -p $out/usr/local/bin
             mkdir -p $out/usr/local/share
             mkdir -p $out/lib
+            mkdir -p $out/usr/sbin
+            mkdir -p $out/tmp
+            mkdir -p $out/var/run
+            mkdir -p $out/var/empty
             mkdir -p $out/home/vscode $out/workspaces
             mkdir -p $out/home/vscode/.config/fish/conf.d
             echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/vscode
             chmod 0440 $out/etc/sudoers.d/vscode
 
-            ln -s ${pkgs.pam}/lib/security $out/lib/security
+            chmod 1777 $out/tmp
+            chmod 0755 $out/var/run
+            chmod 0755 $out/var/empty
+
+            ln -sf ${pkgs.pam}/lib/security $out/lib/security
             install -Dm0644 ${pkgs.writeText "sudo.pam" ''
 auth       sufficient pam_permit.so
 account    sufficient pam_permit.so
 session    optional pam_permit.so
             ''} $out/etc/pam.d/sudo
+
+            install -Dm0644 ${pkgs.writeText "sshd.pam" ''
+auth       sufficient pam_permit.so
+account    sufficient pam_permit.so
+session    optional pam_permit.so
+            ''} $out/etc/pam.d/sshd
 
             cat > $out/etc/os-release <<'EOF'
 NAME="Homebase (Nix)"
@@ -246,6 +260,7 @@ EOF
                 fi
 
                 ${pkgs.openssh}/bin/sshd -f /etc/ssh/sshd_config -D >> /tmp/sshd.log 2>&1 &
+                ln -sf ${pkgs.openssh}/bin/sshd /usr/sbin/sshd || true
               }
 
               stop() {
