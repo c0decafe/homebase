@@ -27,7 +27,7 @@ jobs:
         run: nix build -L --no-write-lock-file .#homebase
 
       - name: Load into Docker daemon
-        run: nix run .#homebase.copyToDockerDaemon -- homebase:test
+        run: nix run .#homebase.copyToDockerDaemon -- docker-daemon:homebase:test
 
       - name: Smoke test ssh-init
         run: docker run --rm homebase:test /usr/local/share/ssh-init.sh
