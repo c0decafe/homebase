@@ -19,4 +19,4 @@ jobs:
       - name: Pull image
         run: docker pull ghcr.io/c0decafe/homebase:latest
       - name: Smoke test ssh-init
-        run: docker run --rm --user root ghcr.io/c0decafe/homebase:latest /usr/local/share/ssh-init.sh
+        run: docker run --rm ghcr.io/c0decafe/homebase:latest sudo -n /usr/local/share/ssh-init.sh
