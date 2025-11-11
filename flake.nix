@@ -79,14 +79,15 @@
             name = "homebase-base";
             paths = tools;
             pathsToLink = [ "/bin" "/share" ];
-            postBuild = ''
-              if [ -L $out/bin/sudo ]; then
-                rm $out/bin/sudo
-              fi
-              cp ${pkgs.sudo}/bin/sudo $out/bin/sudo
-              chmod 4755 $out/bin/sudo
-            '';
           };
+        };
+
+        sudoLayer = buildLayer {
+          copyToRoot = pkgs.runCommand "homebase-sudo" {} ''
+            mkdir -p $out/bin
+            cp ${pkgs.sudo}/bin/sudo $out/bin/sudo
+            chmod 4755 $out/bin/sudo
+          '';
         };
 
         compatLayer = buildLayer {
