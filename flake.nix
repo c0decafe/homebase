@@ -209,11 +209,67 @@ EOF
               exit 1
             ''} $out/usr/local/share/docker-init.sh
 
-            install -Dm0755 ${pkgs.writeScript "ssh-init.sh" ''
+            install -Dm0755 ${pkgs.writeScript "ssh-service.sh" ''
               #!/usr/bin/env bash
               set -euo pipefail
 
               export PATH=${pkgs.lib.makeBinPath [ pkgs.procps pkgs.coreutils pkgs.openssh pkgs.util-linux ]}:$PATH
+
+              ensure_keys() {
+                if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then
+                  ${pkgs.openssh}/bin/ssh-keygen -A
+                fi
+
+                chmod 0600 /etc/ssh/ssh_host_*_key || true
+                chmod 0644 /etc/ssh/ssh_host_*_key.pub || true
+              }
+
+              start() {
+                mkdir -p /var/run/sshd
+                chmod 0755 /var/run/sshd
+
+                ensure_keys
+
+                if pgrep -x sshd >/dev/null 2>&1; then
+                  echo "sshd already running"
+                  return 0
+                fi
+
+                ${pkgs.openssh}/bin/sshd -f /etc/ssh/sshd_config -D >> /tmp/sshd.log 2>&1 &
+              }
+
+              stop() {
+                pkill sshd || true
+              }
+
+              case "$1" in
+                start|"")
+                  start
+                  ;;
+                stop)
+                  stop
+                  ;;
+                restart)
+                  stop
+                  start
+                  ;;
+                status)
+                  if pgrep -x sshd >/dev/null 2>&1; then
+                    exit 0
+                  else
+                    exit 1
+                  fi
+                  ;;
+                *)
+                  echo "Usage: $0 {start|stop|restart|status}" >&2
+                  exit 1
+                  ;;
+              esac
+            ''} $out/etc/init.d/ssh
+
+            install -Dm0755 ${pkgs.writeScript "ssh-init.sh" ''
+              #!/usr/bin/env bash
+              set -euo pipefail
 
               sudoIf() {
                 if [ "$(id -u)" -ne 0 ]; then
@@ -223,22 +279,9 @@ EOF
                 fi
               }
 
-              sudoIf mkdir -p /var/run/sshd
-              sudoIf chmod 0755 /var/run/sshd
+              sudoIf /etc/init.d/ssh start 2>&1 | sudoIf tee /tmp/sshd.log > /dev/null
 
-              if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then
-                sudoIf ${pkgs.openssh}/bin/ssh-keygen -A
-              fi
-
-              sudoIf chmod 0600 /etc/ssh/ssh_host_*_key || true
-              sudoIf chmod 0644 /etc/ssh/ssh_host_*_key.pub || true
-
-              if pgrep -x sshd >/dev/null 2>&1; then
-                :
-              else
-                sudoIf sh -c '${pkgs.openssh}/bin/sshd -f /etc/ssh/sshd_config -D >> /tmp/sshd.log 2>&1 &' 
-              fi
-
+              set +e
               if [ "$#" -gt 0 ]; then
                 exec "$@"
               fi
