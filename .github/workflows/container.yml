@@ -40,4 +40,4 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push image to GHCR
-        run: nix run .#homebase.copyToRegistry --no-sandbox "docker://ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest"
+        run: nix run .#homebase.copyToRegistry -- "docker://ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest"
