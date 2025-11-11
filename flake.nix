@@ -39,7 +39,6 @@
           x11vnc
           novnc
           xorg.xvfb
-          sudo
           pam
           fish
           codex
