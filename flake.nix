@@ -405,9 +405,6 @@ EOF
         packages.homebase = buildImage {
           name   = "homebase";
           tag    = "latest";
-          copyToRegistry = {
-            dest = "docker://ghcr.io/c0decafe/homebase:latest";
-          };
           layers = [
             compatLayer
             baseLayer
