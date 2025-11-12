@@ -257,7 +257,7 @@
         sshLayer = buildLayer {
           copyToRoot = [ sshRuntime sshConfig ];
           perms = [
-            { path = "copyToRoot"; regex = "^/run/sshd$"; uid = 75; gid = 75; dirMode = "0750"; }
+            { path = sshConfig; regex = "^/run/sshd$"; uid = 75; gid = 75; dirMode = "0750"; }
           ];
         };
 
@@ -410,8 +410,7 @@ EOF
           };
         };
 
-        homeLayer = buildLayer {
-          copyToRoot = pkgs.runCommand "homebase-home" {} ''
+        homeRoot = pkgs.runCommand "homebase-home" {} ''
             mkdir -p $out/etc
             mkdir -p $out/lib
             mkdir -p $out/usr/sbin
@@ -460,9 +459,12 @@ Host *
   ServerAliveCountMax 3
             ''} $out/home/vscode/.ssh/config
           '';
+
+        homeLayer = buildLayer {
+          copyToRoot = homeRoot;
           perms = [
-            { path = "copyToRoot"; regex = "^/home/vscode(/.*)?$"; uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
-            { path = "copyToRoot"; regex = "^/workspaces(/.*)?$";  uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
+            { path = homeRoot; regex = "^/home/vscode(/.*)?$"; uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
+            { path = homeRoot; regex = "^/workspaces(/.*)?$";  uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
           ];
         };
 
