@@ -29,11 +29,8 @@ command:
     exec: bash -lc "sudo /usr/local/share/init.sh"
     exit-status: 0
   home-dir-ownership:
-    exec: bash -lc "sudo /usr/local/share/init.sh && stat -c '%U:%G %a %n' /home /workspaces"
+    exec: bash -lc "set -euo pipefail; sudo /usr/local/share/init.sh >/dev/null; test \"$(stat -c '%U:%G %a %n' /home)\" = 'vscode:vscode 755 /home'; test \"$(stat -c '%U:%G %a %n' /workspaces)\" = 'vscode:vscode 755 /workspaces'"
     exit-status: 0
-    stdout:
-      - '^vscode:vscode 755 /home$'
-      - '^vscode:vscode 755 /workspaces$'
   sudo-works:
     exec: bash -lc "sudo -n true"
     exit-status: 0
@@ -47,7 +44,5 @@ command:
     exec: bash -lc "sudo /usr/local/share/init.sh && ss -lnpt | grep ':2222'"
     exit-status: 0
   sudo-setuid:
-    exec: bash -lc "stat -c '%a' /bin/sudo"
+    exec: bash -lc "test \"$(stat -c '%a' /bin/sudo)\" = '4755'"
     exit-status: 0
-    stdout:
-      - '^4755$'
