@@ -39,7 +39,7 @@ jobs:
       - name: Load and push sudo base image
         run: |
           set -euo pipefail
-          ./result | docker load
+          docker load -i result
           docker push ghcr.io/${{ github.repository_owner }}/homebase-sudo:latest
 
   build-test-push:
