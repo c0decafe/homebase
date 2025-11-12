@@ -9,6 +9,7 @@
     "--tmpfs",
     "/run:rw,noexec,nosuid,size=256m"
   ],
+  "forwardPorts": [2222],
   "features": {},
   "customizations": {
     "vscode": {

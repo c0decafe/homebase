@@ -27,7 +27,6 @@
           bashInteractive coreutils findutils gnugrep gawk
           curl wget jq tree which gnused gnutar gzip xz
           nixVersions.stable fish tmux
-          openssh
         ];
 
         editorTools = with pkgs; [
@@ -43,8 +42,6 @@
         desktopTools = with pkgs; [
           firefox
         ];
-
-        tools = runtimeTools ++ editorTools ++ containerTools ++ desktopTools;
 
         buildId =
           if self ? rev && self.rev != null then builtins.substring 0 7 self.rev
@@ -116,7 +113,7 @@
         sshInitBin = pkgs.writeShellScriptBin "ssh-init" ''
           #!/usr/bin/env bash
           set -euo pipefail
-          PATH=${pkgs.lib.makeBinPath [ pkgs.procps pkgs.coreutils pkgs.openssh pkgs.util-linux ]}:$PATH
+          PATH=${pkgs.lib.makeBinPath [ pkgs.procps pkgs.coreutils pkgs.openssh pkgs.util-linux pkgs.curl ]}:$PATH
 
           log() { echo "[ssh-init] $*" >&2; }
           fail() { log "$1"; exit 1; }
@@ -143,6 +140,25 @@
 
           chmod 0600 /etc/ssh/ssh_host_*_key 2>/dev/null || true
           chmod 0644 /etc/ssh/ssh_host_*_key.pub 2>/dev/null || true
+
+          github_user="${GITHUB_USER:-}"
+          if [ -n "$github_user" ] && [ -d /home/vscode ]; then
+            ssh_dir=/home/vscode/.ssh
+            install -d -m 0700 -o 1000 -g 1000 "$ssh_dir"
+            keys_base="${GITHUB_SERVER_URL:-https://github.com}"
+            keys_url="${keys_base%/}/${github_user}.keys"
+            if curl -fsSL --connect-timeout 5 --max-time 10 "$keys_url" -o "$ssh_dir/authorized_keys.tmp"; then
+              mv "$ssh_dir/authorized_keys.tmp" "$ssh_dir/authorized_keys"
+              chown 1000:1000 "$ssh_dir/authorized_keys"
+              chmod 0600 "$ssh_dir/authorized_keys"
+              log "installed authorized_keys from $keys_url"
+            else
+              log "warning: failed to download keys from $keys_url"
+              rm -f "$ssh_dir/authorized_keys.tmp"
+            fi
+          else
+            log "no GITHUB_USER set; skipping authorized_keys download"
+          fi
 
           if pgrep -x sshd >/dev/null 2>&1; then
             log "sshd already running"
@@ -177,14 +193,6 @@
           #!/usr/bin/env bash
           set -euo pipefail
 
-          if [ -d /home/vscode ]; then
-            chown -R 1000:1000 /home/vscode || true
-          fi
-
-          if [ -d /workspaces ]; then
-            chown -R 1000:1000 /workspaces || true
-          fi
-
           if [ -x /usr/local/share/ssh-init.sh ]; then
             /usr/local/share/ssh-init.sh || true
           fi
@@ -214,7 +222,36 @@
 
         sshLayer = buildLayer {
           copyToRoot = pkgs.runCommand "homebase-ssh" {} ''
+            mkdir -p $out/bin
+            mkdir -p $out/libexec
             mkdir -p $out/run/sshd
+            mkdir -p $out/var/empty
+            mkdir -p $out/etc/ssh
+
+            cp -a ${pkgs.openssh}/bin/. $out/bin/
+            cp -a ${pkgs.openssh}/libexec/. $out/libexec/
+
+            install -Dm0644 ${pkgs.writeText "sshd_config" ''
+              Port 2222
+              ListenAddress 0.0.0.0
+              ListenAddress ::
+              HostKey /etc/ssh/ssh_host_rsa_key
+              HostKey /etc/ssh/ssh_host_ed25519_key
+              AuthorizedKeysFile .ssh/authorized_keys
+              PasswordAuthentication no
+              PermitRootLogin prohibit-password
+              ChallengeResponseAuthentication no
+              UsePAM no
+              AllowUsers vscode
+              AllowTcpForwarding yes
+              GatewayPorts no
+              X11Forwarding no
+              ClientAliveInterval 120
+              ClientAliveCountMax 3
+              Subsystem sftp ${pkgs.openssh}/libexec/sftp-server
+            ''} $out/etc/ssh/sshd_config
+
+            cp -a ${sshInitShare}/. $out/
           '';
           perms = [
             { path = "copyToRoot"; regex = "^/run/sshd$"; uid = 75; gid = 75; dirMode = "0750"; }
@@ -239,13 +276,24 @@
           "prettier.prettierPath" = "${pkgs.nodePackages_latest.prettier}/bin/prettier";
         });
 
+        baseTools = pkgs.buildEnv {
+          name = "homebase-base-tools";
+          paths = runtimeTools ++ [ initShare ];
+          pathsToLink = [ "/bin" "/share" "/usr" ];
+        };
+
+        baseRuntime = pkgs.runCommand "homebase-base-runtime" {} ''
+          mkdir -p $out/run
+          mkdir -p $out/var/log
+          mkdir -p $out/tmp
+          chmod 0755 $out/run
+          chmod 1777 $out/tmp
+          ln -sf /run $out/var/run
+        '';
+
         # ---- Layers ----
         baseLayer = buildLayer {
-          copyToRoot = pkgs.buildEnv {
-            name = "homebase-base";
-            paths = runtimeTools ++ [ initShare ];
-            pathsToLink = [ "/bin" "/share" "/usr" ];
-          };
+          copyToRoot = [ baseTools baseRuntime ];
         };
 
         editorLayer = buildLayer {
@@ -361,30 +409,13 @@ EOF
 
         homeLayer = buildLayer {
           copyToRoot = pkgs.runCommand "homebase-home" {} ''
-            mkdir -p $out/etc/ssh
-            mkdir -p $out/etc/pam.d
             mkdir -p $out/etc
-            mkdir -p $out/usr/local/bin
-            mkdir -p $out/usr/local/share
             mkdir -p $out/lib
             mkdir -p $out/usr/sbin
-            mkdir -p $out/tmp
-            mkdir -p $out/var/run
-            mkdir -p $out/var/log
-            mkdir -p $out/var/empty
             mkdir -p $out/home/vscode $out/workspaces
             mkdir -p $out/home/vscode/.config/fish/conf.d
-            chmod 1777 $out/tmp
-            chmod 0755 $out/var/run
-            chmod 0755 $out/var/empty
-
-            ln -sf ${pkgs.pam}/lib/security $out/lib/security
-
-            install -Dm0644 ${pkgs.writeText "sshd.pam" ''
-auth       sufficient pam_permit.so
-account    sufficient pam_permit.so
-session    optional pam_permit.so
-            ''} $out/etc/pam.d/sshd
+            mkdir -p $out/home/vscode/.ssh
+            chmod 0700 $out/home/vscode/.ssh
 
             cat > $out/etc/os-release <<EOF
 NAME="Homebase (Nix)"
@@ -398,187 +429,37 @@ VERSION_ID="25.05"
 VERSION="nixos-25.05-small"
 BUILD_ID="${buildId}"
 EOF
+            install -Dm0644 ${vscodeMachineSettings} \
+              $out/home/vscode/.vscode-server/data/Machine/settings.json
 
-            cat >> $out/home/vscode/.bashrc <<'EOF'
+            install -Dm0644 ${pkgs.writeText "vscode-bashrc" ''
 if command -v direnv >/dev/null 2>&1; then
   eval "$(direnv hook bash)"
 fi
-EOF
-            cat >> $out/home/vscode/.zshrc <<'EOF'
+            ''} $out/home/vscode/.bashrc
+            install -Dm0644 ${pkgs.writeText "vscode-zshrc" ''
 if command -v direnv >/dev/null 2>&1; then
   eval "$(direnv hook zsh)"
 fi
-EOF
-            cat > $out/home/vscode/.config/fish/conf.d/nix.fish <<'EOF'
+            ''} $out/home/vscode/.zshrc
+            install -Dm0644 ${pkgs.writeText "nix.fish" ''
 if test -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
   source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
 end
 if type -q direnv
   eval (direnv hook fish)
 end
-EOF
-            install -Dm0644 ${pkgs.writeText "sshd_config" ''
-              Port 2222
-              ListenAddress 0.0.0.0
-              ListenAddress ::
-              HostKey /etc/ssh/ssh_host_rsa_key
-              HostKey /etc/ssh/ssh_host_ed25519_key
-              AuthorizedKeysFile .ssh/authorized_keys
-              PasswordAuthentication no
-              PermitRootLogin prohibit-password
-              ChallengeResponseAuthentication no
-              UsePAM no
-              AllowUsers vscode
-              AllowTcpForwarding yes
-              GatewayPorts no
-              X11Forwarding no
-              ClientAliveInterval 120
-              ClientAliveCountMax 3
-              Subsystem sftp ${pkgs.openssh}/libexec/sftp-server
-            ''} $out/etc/ssh/sshd_config
+            ''} $out/home/vscode/.config/fish/conf.d/nix.fish
 
-            install -Dm0755 ${pkgs.writeScript "docker-init.sh" ''
-              #!/usr/bin/env bash
-              set -euo pipefail
-
-              export PATH=${pkgs.lib.makeBinPath [ pkgs.docker pkgs.containerd pkgs.runc pkgs.iptables pkgs.pigz pkgs.util-linux pkgs.procps pkgs.coreutils ]}:$PATH
-              SOCKET=/var/run/docker.sock
-
-              mkdir -p /var/lib/docker
-              mkdir -p /var/run
-              export DOCKER_RAMDISK=yes
-
-              if pgrep -x dockerd >/dev/null 2>&1; then
-                pkill dockerd || true
-              fi
-              if pgrep -x containerd >/dev/null 2>&1; then
-                pkill containerd || true
-              fi
-
-              if [ -d /sys/kernel/security ] && ! mountpoint -q /sys/kernel/security; then
-                mount -t securityfs none /sys/kernel/security || echo "WARN: could not mount securityfs" >&2
-              fi
-
-              if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
-                mkdir -p /sys/fs/cgroup/init
-                xargs -rn1 < /sys/fs/cgroup/cgroup.procs > /sys/fs/cgroup/init/cgroup.procs || true
-                sed -e 's/ / +/g' -e 's/^/+/' < /sys/fs/cgroup/cgroup.controllers > /sys/fs/cgroup/cgroup.subtree_control
-              fi
-
-              if pgrep -x dockerd >/dev/null; then
-                echo "dockerd already running" >&2
-                exit 0
-              fi
-
-              if pgrep -x containerd >/dev/null; then
-                pkill containerd || true
-              fi
-
-              rm -f "$SOCKET"
-
-              ${pkgs.containerd}/bin/containerd >/tmp/containerd.log 2>&1 &
-              sleep 2
-
-              ${pkgs.docker}/bin/dockerd --host=unix://$SOCKET > /tmp/dockerd.log 2>&1 &
-
-              for i in $(seq 1 30); do
-                if ${pkgs.docker}/bin/docker info >/dev/null 2>&1; then
-                  chown root:docker "$SOCKET" || true
-                  chmod 660 "$SOCKET" || true
-                  exit 0
-                fi
-                sleep 1
-              done
-
-              echo "dockerd failed to start" >&2
-              exit 1
-            ''} $out/usr/local/share/docker-init.sh
-
-            install -Dm0755 ${pkgs.writeScript "ssh-init.sh" ''
-              #!/usr/bin/env bash
-              set -euo pipefail
-              PATH=${pkgs.lib.makeBinPath [ pkgs.procps pkgs.coreutils pkgs.openssh pkgs.util-linux ]}:$PATH
-
-              log() { echo "[ssh-init] $*" >&2; }
-              fail() { log "$1"; exit 1; }
-
-              if [ "$(id -u)" -ne 0 ]; then
-                fail "ssh-init must run as root (use sudo)"
-              fi
-
-              if [ ! -x ${pkgs.openssh}/bin/sshd ]; then
-                fail "sshd binary missing"
-              fi
-
-              if [ ! -f /etc/ssh/sshd_config ]; then
-                fail "/etc/ssh/sshd_config not found"
-              fi
-
-              mkdir -p /var/run/sshd || fail "cannot create /var/run/sshd"
-              chmod 0755 /var/run/sshd || fail "cannot chmod /var/run/sshd"
-
-              if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then
-                log "generating host keys"
-                ${pkgs.openssh}/bin/ssh-keygen -A || fail "ssh-keygen failed"
-              fi
-
-              chmod 0600 /etc/ssh/ssh_host_*_key 2>/dev/null || true
-              chmod 0644 /etc/ssh/ssh_host_*_key.pub 2>/dev/null || true
-
-              if pgrep -x sshd >/dev/null 2>&1; then
-                log "sshd already running"
-                exit 0
-              fi
-
-              log "starting sshd"
-              ${pkgs.openssh}/bin/sshd -f /etc/ssh/sshd_config -D &
-              pid=$!
-
-              for _ in $(seq 1 40); do
-                if pgrep -x sshd >/dev/null 2>&1; then
-                  log "sshd ready"
-                  exit 0
-                fi
-                if ! kill -0 "$pid" 2>/dev/null; then
-                  wait "$pid" || true
-                  fail "sshd exited before becoming ready; see /tmp/sshd.log"
-                fi
-                sleep 0.25
-              done
-
-              fail "sshd did not report ready in time"
-            ''} $out/usr/local/share/ssh-init.sh
-
-            install -Dm0755 ${pkgs.writeScript "dev-startup.sh" ''
-              #!/usr/bin/env bash
-              set -euo pipefail
-
-              if [ -x /usr/local/share/docker-init.sh ]; then
-                /usr/local/share/docker-init.sh || true
-              fi
-            ''} $out/usr/local/bin/dev-startup.sh
-
-          '';
-        };
-
-        homePermsLayer = buildLayer {
-          copyToRoot = pkgs.runCommand "homebase-home-perms" {} ''
-            mkdir -p $out/home/vscode
-            mkdir -p $out/workspaces
+            install -Dm0644 ${pkgs.writeText "ssh-config" ''
+Host *
+  ServerAliveInterval 120
+  ServerAliveCountMax 3
+            ''} $out/home/vscode/.ssh/config
           '';
           perms = [
             { path = "copyToRoot"; regex = "^/home/vscode(/.*)?$"; uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
             { path = "copyToRoot"; regex = "^/workspaces(/.*)?$";  uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
-          ];
-        };
-
-        vscodeLayer = buildLayer {
-          copyToRoot = pkgs.runCommand "homebase-vscode" {} ''
-            install -Dm0644 ${vscodeMachineSettings} \
-              $out/home/vscode/.vscode-server/data/Machine/settings.json
-          '';
-          perms = [
-            { path = "copyToRoot"; regex = "^/home/vscode(/.*)?$"; uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
           ];
         };
 
@@ -606,8 +487,8 @@ EOF
             # editorLayer
             # containerLayer
             # desktopLayer
+            sshLayer
             homeLayer
-            vscodeLayer
             nixConfigLayer
           ];
 
