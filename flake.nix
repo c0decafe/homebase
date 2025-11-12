@@ -181,7 +181,7 @@ EOF
         sudoBaseImage = n2c.nix2container.pullImage {
           imageName = "ghcr.io/c0decafe/homebase-sudo";
           imageDigest = "sha256:d5cc14db1547a101b2697c4984b6309efa68dc081000f047f8763088d7ff1c29";
-          sha256 = pkgs.lib.fakeSha256;
+          sha256 = "sha256-rjKYPS+qzyiUoPi7Ds1iGq6oEWOhGJUVGhKmYHoy6lU=";
           arch = "amd64";
         };
 
