@@ -5,6 +5,11 @@ on:
   workflow_run:
     workflows: ["container"]
     types: ["completed"]
+  push:
+    branches: [ master ]
+    paths:
+      - .github/workflows/smoke.yml
+      - .goss.yaml
 
 jobs:
   smoke:

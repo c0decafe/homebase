@@ -6,7 +6,6 @@ on:
     paths:
       - flake.nix
       - .github/workflows/container.yml
-      - .github/workflows/smoke.yml
   workflow_dispatch: {}
 
 permissions:
