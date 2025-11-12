@@ -517,7 +517,6 @@ Host *
             };
             Volumes = {
               "/nix" = {};
-              "/home/vscode" = {};
             };
           };
 
