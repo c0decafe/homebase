@@ -315,6 +315,7 @@
           copyToRoot = [ sshRuntime sshConfig ];
           perms = [
             { path = sshConfig; regex = "^/run/sshd$"; uid = 75; gid = 75; dirMode = "0750"; }
+            { path = sshConfig; regex = "^/usr/local/share/ssh-init.sh$"; mode = "0755"; uid = 0; gid = 0; }
           ];
         };
 
@@ -398,7 +399,7 @@ EOF
 
         baseTools = pkgs.buildEnv {
           name = "homebase-base-tools";
-          paths = runtimeTools ++ [ initShare homeReferenceShare ];
+          paths = runtimeTools ++ [ homeReferenceShare ];
           pathsToLink = [ "/bin" "/share" "/usr" ];
         };
 
@@ -417,7 +418,10 @@ EOF
 
         # ---- Layers ----
         baseLayer = buildLayer {
-          copyToRoot = [ baseTools baseRuntime systemFiles ];
+          copyToRoot = [ baseTools baseRuntime systemFiles initShare ];
+          perms = [
+            { path = initShare; regex = "^/usr/local/share/init.sh$"; mode = "0755"; uid = 0; gid = 0; }
+          ];
         };
 
         editorLayer = buildLayer {
