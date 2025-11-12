@@ -332,7 +332,7 @@
 
               export PATH=${pkgs.lib.makeBinPath [ pkgs.firefox pkgs.x11vnc pkgs.novnc pkgs.xorg.xvfb pkgs.busybox pkgs.python3Packages.websockify ]}:$PATH
 
-              XVFB_DISPLAY="${DISPLAY:-:99}"
+              XVFB_DISPLAY="''${DISPLAY:-:99}"
               XVFB_W="1280"
               XVFB_H="768"
               XVFB_DPI="96"
