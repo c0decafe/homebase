@@ -46,7 +46,7 @@
 
         tools = runtimeTools ++ editorTools ++ containerTools ++ desktopTools;
 
-        dockerInitScript = pkgs.writeScript "docker-init.sh" ''
+        dockerInitBin = pkgs.writeShellScriptBin "docker-init" ''
           #!/usr/bin/env bash
           set -euo pipefail
 
@@ -103,7 +103,12 @@
           exit 1
         '';
 
-        sshInitScript = pkgs.writeScript "ssh-init.sh" ''
+        dockerInitShare = pkgs.runCommand "docker-init-share" {} ''
+          mkdir -p $out/usr/local/share
+          ln -s ${dockerInitBin}/bin/docker-init $out/usr/local/share/docker-init.sh
+        '';
+
+        sshInitBin = pkgs.writeShellScriptBin "ssh-init" ''
           #!/usr/bin/env bash
           set -euo pipefail
           PATH=${pkgs.lib.makeBinPath [ pkgs.procps pkgs.coreutils pkgs.openssh pkgs.util-linux ]}:$PATH
@@ -158,7 +163,12 @@
           fail "sshd did not report ready in time"
         '';
 
-        initScript = pkgs.writeScript "init.sh" ''
+        sshInitShare = pkgs.runCommand "ssh-init-share" {} ''
+          mkdir -p $out/usr/local/share
+          ln -s ${sshInitBin}/bin/ssh-init $out/usr/local/share/ssh-init.sh
+        '';
+
+        initBin = pkgs.writeShellScriptBin "init" ''
           #!/usr/bin/env bash
           set -euo pipefail
 
@@ -177,6 +187,11 @@
 #         if [ -x /usr/local/share/docker-init.sh ]; then
 #           /usr/local/share/docker-init.sh || true
 #         fi
+        '';
+
+        initShare = pkgs.runCommand "init-share" {} ''
+          mkdir -p $out/usr/local/share
+          ln -s ${initBin}/bin/init $out/usr/local/share/init.sh
         '';
 
         fakeNssExtended = pkgs.dockerTools.fakeNss.override {
@@ -223,8 +238,8 @@
         baseLayer = buildLayer {
           copyToRoot = pkgs.buildEnv {
             name = "homebase-base";
-            paths = runtimeTools;
-            pathsToLink = [ "/bin" "/share" ];
+            paths = runtimeTools ++ [ initShare ];
+            pathsToLink = [ "/bin" "/share" "/usr" ];
           };
         };
 
@@ -239,8 +254,8 @@
         containerLayer = buildLayer {
           copyToRoot = pkgs.buildEnv {
             name = "homebase-container";
-            paths = containerTools;
-            pathsToLink = [ "/bin" "/share" ];
+            paths = containerTools ++ [ dockerInitShare ];
+            pathsToLink = [ "/bin" "/share" "/usr" ];
           };
         };
 
