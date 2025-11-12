@@ -183,13 +183,6 @@ EOF
           arch = "amd64";
         };
 
-        sudoBaseImage = n2c.nix2container.pullImage {
-          imageName = "ghcr.io/c0decafe/homebase-sudo";
-          imageDigest = "sha256:1fa1b83d8aa0513a4f346e6e3ec490dc2a0f5fdf0e727bf3e5ef274a0b552219";
-          sha256 = pkgs.lib.fakeSha256;
-          arch = "amd64";
-        };
-
         compatLayer = buildLayer {
           copyToRoot = pkgs.buildEnv {
             name = "homebase-compat";
