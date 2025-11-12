@@ -57,6 +57,16 @@ Other useful outputs:
 nix build .#editor-settings
 ```
 
+### Smoke test
+
+After building/pulling an image, run the automated regression checks:
+
+```bash
+SMOKE_GITHUB_USER=<your-gh-user> ./scripts/smoke.sh ghcr.io/c0decafe/homebase:latest
+```
+
+The script verifies base image metadata, `/home/vscode` ownership, `sudo`, `ssh-init` key download, and that `sshd` listens on port 2222. It defaults to `c0decafe` if `SMOKE_GITHUB_USER` (or `GITHUB_USER`) is unset.
+
 ### ChatGPT / Codex integration
 
 - The devcontainer installs the official `openai.chatgpt` extension.
