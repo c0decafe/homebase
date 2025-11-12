@@ -152,7 +152,7 @@
             set -eux
             mkdir -p $out/bin $out/etc
 
-            cp ${spkgs.opendoas}/bin/doas $out/bin/doas
+            cp ${spkgs.doas}/bin/doas $out/bin/doas
             ln -s doas $out/bin/sudo
 
             chown root:root $out/bin/doas
