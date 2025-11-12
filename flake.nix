@@ -162,6 +162,7 @@ EOF
           '';
           runAsRoot = ''
             set -eux
+            find /
             chown 0:0 bin/doas
             chmod 4755 bin/doas
           '';
