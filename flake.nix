@@ -162,9 +162,7 @@ permit root
 EOF
             chown 0:0 /bin/doas
             chmod 4755 /bin/doas
-            ${pkgs.e2fsprogs}/bin/chattr -R -i /nix || true
-            chmod -R u+w /nix || true
-            rm -rf /nix
+            touch /.wh.nix
           '';
           config = {
             Entrypoint = [ "/bin/doas" "true" ];
