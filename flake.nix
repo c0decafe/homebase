@@ -162,9 +162,8 @@ EOF
           '';
           runAsRoot = ''
             set -eux
-            chown 0:0 /bin/doas
-            chmod 4755 /bin/doas
-            rm -rf /nix || true
+            chown 0:0 bin/doas
+            chmod 4755 bin/doas
           '';
           config = {
             Entrypoint = [ "/bin/doas" "true" ];
