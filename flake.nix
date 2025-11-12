@@ -155,6 +155,7 @@
             install -m 0755 ${spkgs.doas}/bin/doas bin/doas
             ln -s doas bin/sudo
 
+            mkdir -p etc
             cat > etc/doas.conf <<'EOF'
 permit keepenv nopass :sudo
 permit root
