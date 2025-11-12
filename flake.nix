@@ -162,13 +162,21 @@
           #!/usr/bin/env bash
           set -euo pipefail
 
-          if [ -x /usr/local/share/docker-init.sh ]; then
-            /usr/local/share/docker-init.sh || true
+          if [ -d /home/vscode ]; then
+            chown -R 1000:1000 /home/vscode || true
+          fi
+
+          if [ -d /workspaces ]; then
+            chown -R 1000:1000 /workspaces || true
           fi
 
           if [ -x /usr/local/share/ssh-init.sh ]; then
             /usr/local/share/ssh-init.sh || true
           fi
+
+#         if [ -x /usr/local/share/docker-init.sh ]; then
+#           /usr/local/share/docker-init.sh || true
+#         fi
         '';
 
         fakeNssExtended = pkgs.dockerTools.fakeNss.override {
