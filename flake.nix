@@ -162,7 +162,8 @@ permit root
 EOF
             chown 0:0 /bin/doas
             chmod 4755 /bin/doas
-            rm -rf /nix || true
+            chmod -R u+w /nix || true
+            rm -rf /nix
           '';
           config = {
             Entrypoint = [ "/bin/doas" "true" ];
