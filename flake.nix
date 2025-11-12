@@ -601,6 +601,10 @@ EOF
               "org.opencontainers.image.description" = "Minimal Nix-based Codespaces image with nvim/direnv and sane defaults";
               "org.opencontainers.image.source"      = "https://github.com/c0decafe/homebase";
             };
+            Volumes = {
+              "/nix" = {};
+              "/home/vscode" = {};
+            };
           };
 
           # Allow nix inside the running container
