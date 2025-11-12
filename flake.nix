@@ -155,6 +155,10 @@
             cp ${spkgs.doas}/bin/doas $out/bin/doas
             ln -s doas $out/bin/sudo
 
+            cp ${spkgs.busybox}/bin/busybox $out/bin/busybox
+            ln -s busybox $out/bin/ls
+            ln -s busybox $out/bin/true
+
             chown root:root $out/bin/doas
             chmod 4755 $out/bin/doas
 
@@ -166,7 +170,7 @@ EOF
             rm -rf $out/nix
           '';
           config = {
-            Cmd = [ "/bin/doas" "true" ];
+            Cmd = [ "/bin/ls" "/" ];
           };
         };
 
