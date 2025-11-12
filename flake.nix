@@ -160,6 +160,8 @@
 permit keepenv nopass :sudo
 permit root
 EOF
+            mkdir -p /lib/security
+            cp -a ${pkgs.pam}/lib/security/. /lib/security/
             chown 0:0 /bin/doas
             chmod 4755 /bin/doas
             touch /.wh.nix
