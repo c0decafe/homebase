@@ -59,7 +59,7 @@ nix build .#editor-settings
 
 ### Smoke test
 
-We keep container regressions in [`./.goss.yaml`](./.goss.yaml) and run them with
+We keep container regressions in [`./goss.yaml`](./goss.yaml) and run them with
 [dgoss](https://github.com/goss-org/goss/blob/master/extras/dgoss/README.md):
 
 ```bash
