@@ -145,9 +145,7 @@
           '';
         };
 
-        sudoRootfs = pkgs.runCommandNoCC "homebase-sudo-rootfs" {
-          allowedRequisites = [ ];
-        } ''
+        sudoRootfs = pkgs.runCommandNoCC "homebase-sudo-rootfs" {} ''
           set -eux
           mkdir -p $out/bin $out/etc
 
