@@ -145,28 +145,24 @@
           '';
         };
 
-        sudoRootfs = pkgs.runCommandNoCC "homebase-sudo-rootfs" {} ''
-          set -eux
-          mkdir -p $out/bin $out/etc
+        sudoStreamImage = pkgs.dockerTools.buildImage {
+          name = "homebase-sudo-local";
+          tag  = "latest";
+          extraCommands = ''
+            set -eux
+            mkdir -p bin etc
 
-          cp ${spkgs.doas}/bin/doas $out/bin/doas
-          ln -s doas $out/bin/sudo
+            install -m 0755 ${spkgs.doas}/bin/doas bin/doas
+            ln -s doas bin/sudo
 
-          cat > $out/etc/doas.conf <<'EOF'
+            chown 0:0 bin/doas
+            chmod 4755 bin/doas
+
+            cat > etc/doas.conf <<'EOF'
 permit keepenv nopass :sudo
 permit root
 EOF
 
-          file $out/bin/doas || true
-        '';
-
-        sudoStreamImage = pkgs.dockerTools.buildImage {
-          name = "homebase-sudo-local";
-          tag  = "latest";
-          copyToRoot = sudoRootfs;
-          extraCommands = ''
-            chmod 4755 bin/doas
-            chown 0:0 bin/doas
             rm -rf nix || true
           '';
           config = {
