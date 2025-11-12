@@ -141,12 +141,12 @@
           chmod 0600 /etc/ssh/ssh_host_*_key 2>/dev/null || true
           chmod 0644 /etc/ssh/ssh_host_*_key.pub 2>/dev/null || true
 
-          github_user="${GITHUB_USER:-}"
+          github_user="''${GITHUB_USER:-}"
           if [ -n "$github_user" ] && [ -d /home/vscode ]; then
             ssh_dir=/home/vscode/.ssh
             install -d -m 0700 -o 1000 -g 1000 "$ssh_dir"
-            keys_base="${GITHUB_SERVER_URL:-https://github.com}"
-            keys_url="${keys_base%/}/${github_user}.keys"
+            keys_base="''${GITHUB_SERVER_URL:-https://github.com}"
+            keys_url="''${keys_base%/}/''${github_user}.keys"
             if curl -fsSL --connect-timeout 5 --max-time 10 "$keys_url" -o "$ssh_dir/authorized_keys.tmp"; then
               mv "$ssh_dir/authorized_keys.tmp" "$ssh_dir/authorized_keys"
               chown 1000:1000 "$ssh_dir/authorized_keys"
