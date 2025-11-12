@@ -144,7 +144,7 @@
           '';
         };
 
-        sudoBaseImage = pkgs.dockerTools.streamLayeredImage {
+        sudoStreamImage = pkgs.dockerTools.streamLayeredImage {
           name = "ghcr.io/c0decafe/homebase-sudo";
           tag  = "latest";
           fakeRootCommands = ''
@@ -182,6 +182,13 @@ session    optional pam_permit.so
             User = "root";
             WorkingDir = "/";
           };
+        };
+
+        sudoBaseImage = n2c.nix2container.pullImage {
+          imageName = "ghcr.io/c0decafe/homebase-sudo";
+          imageDigest = "sha256:0000000000000000000000000000000000000000000000000000000000000000";
+          sha256 = pkgs.lib.fakeSha256;
+          arch = "amd64";
         };
 
         compatLayer = buildLayer {
@@ -420,7 +427,7 @@ EOF
 
       in rec {
         packages.editor-settings = vscodeMachineSettings;
-        packages."homebase-sudo" = sudoBaseImage;
+        packages."homebase-sudo" = sudoStreamImage;
 
         packages.homebase = buildImage {
           name   = "ghcr.io/c0decafe/homebase";
