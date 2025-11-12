@@ -27,6 +27,7 @@
 - Include new hashes/digests when fixed-output derivations change (mention `nix`-reported value in the description).
 - Screenshots are unnecessary; paste command outputs or GHCR links instead.
 - Ensure PRs pass both `container` and `ssh-smoke-test` workflows; re-run if rate-limited after adding `access-tokens` config.
+- The Codex agent may run any git command (push only on request) and other safe tooling like `gh` or `curl` when needed.
 
 ## Security & Configuration Tips
 - Never embed real secrets in `flake.nix`; reference `${{ secrets.* }}` in workflows instead.
