@@ -3,6 +3,10 @@ name: container
 on:
   push:
     branches: [ master ]
+    paths:
+      - flake.nix
+      - .github/workflows/container.yml
+      - .github/workflows/smoke.yml
   workflow_dispatch: {}
 
 permissions:
