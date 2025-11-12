@@ -183,7 +183,12 @@ EOF
         compatLayer = buildLayer {
           copyToRoot = pkgs.buildEnv {
             name = "homebase-compat";
-            paths = dockerCompatPaths;
+            paths = dockerCompatPaths ++ [
+              (pkgs.runCommand "usr-bin-bash" {} ''
+                mkdir -p $out/usr/bin
+                ln -s ${pkgs.bashInteractive}/bin/bash $out/usr/bin/bash
+              '')
+            ];
             pathsToLink = [ "/bin" "/usr" "/etc" ];
           };
         };
