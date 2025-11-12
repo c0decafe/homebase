@@ -169,6 +169,11 @@ EOF
           name = "homebase-sudo-local";
           tag  = "latest";
           copyToRoot = sudoRootfs;
+          extraCommands = ''
+            chmod 4755 bin/doas
+            chown 0:0 bin/doas
+            rm -rf nix || true
+          '';
           config = {
             Entrypoint = [ "/bin/doas" "true" ];
             User = "0:0";
