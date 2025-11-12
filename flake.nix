@@ -154,9 +154,6 @@
           cp ${spkgs.doas}/bin/doas $out/bin/doas
           ln -s doas $out/bin/sudo
 
-          chown 0:0 $out/bin/doas
-          chmod 4755 $out/bin/doas
-
           cat > $out/etc/doas.conf <<'EOF'
 permit keepenv nopass :sudo
 permit root
