@@ -11,6 +11,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
+        spkgs = pkgs.pkgsStatic;
 
         # Use nix2container exactly as provided by your pin:
         # it exports a set whose functions live under `.nix2container`
@@ -148,39 +149,27 @@
           name = "ghcr.io/c0decafe/homebase-sudo";
           tag  = "latest";
           fakeRootCommands = ''
-            mkdir -p $out/bin
-            mkdir -p $out/etc/sudoers.d
-            mkdir -p $out/etc/pam.d
+            set -eux
+            mkdir -p $out/bin $out/etc
 
-            cp ${pkgs.sudo}/bin/sudo $out/bin/sudo
-            chown 0:0 $out/bin/sudo
-            chmod 4755 $out/bin/sudo
+            cp ${spkgs.opendoas}/bin/doas $out/bin/doas
+            ln -s doas $out/bin/sudo
 
-            cat > $out/etc/sudoers <<'EOF'
-Defaults env_reset
-Defaults mail_badpass
-Defaults secure_path="/bin:/usr/bin:/usr/local/bin"
+            chown root:root $out/bin/doas
+            chmod 4755 $out/bin/doas
 
-root ALL=(ALL) ALL
-%sudo ALL=(ALL:ALL) NOPASSWD:ALL
-
-#includedir /etc/sudoers.d
+            cat > $out/etc/doas.conf <<'EOF'
+permit keepenv nopass :sudo
+permit root
 EOF
-            chmod 0440 $out/etc/sudoers
 
-            echo 'vscode ALL=(ALL) NOPASSWD:ALL' > $out/etc/sudoers.d/99-vscode
-            chmod 0440 $out/etc/sudoers.d/99-vscode
-
-            install -Dm0644 ${pkgs.writeText "sudo.pam" ''
-auth       sufficient pam_permit.so
-account    sufficient pam_permit.so
-session    optional pam_permit.so
-            ''} $out/etc/pam.d/sudo
+            if ${pkgs.gnugrep}/bin/grep -R "/nix/store" -n $out; then
+              echo "ERROR: Found store refs" >&2
+              exit 1
+            fi
           '';
           config = {
-            Env = [ "PATH=/bin" ];
-            User = "root";
-            WorkingDir = "/";
+            Cmd = [ "/bin/doas" "true" ];
           };
         };
 
