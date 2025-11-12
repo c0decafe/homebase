@@ -142,8 +142,9 @@
           chmod 0644 /etc/ssh/ssh_host_*_key.pub 2>/dev/null || true
 
           github_user="''${GITHUB_USER:-}"
-          if [ -n "$github_user" ] && [ -d /home/vscode ]; then
-            ssh_dir=/home/vscode/.ssh
+          vscode_home="/home"
+          if [ -n "$github_user" ] && [ -d "$vscode_home" ]; then
+            ssh_dir="$vscode_home/.ssh"
             install -d -m 0700 -o 1000 -g 1000 "$ssh_dir"
             keys_base="''${GITHUB_SERVER_URL:-https://github.com}"
             keys_url="''${keys_base%/}/''${github_user}.keys"
@@ -193,6 +194,48 @@
           #!/usr/bin/env bash
           set -euo pipefail
 
+          REF_HOME="/usr/local/share/homebase/home"
+          TARGET_HOME="/home"
+          TARGET_WORKSPACES="/workspaces"
+          USER_UID=1000
+          USER_GID=1000
+
+          log() { echo "[init] $*" >&2; }
+
+          ensure_dir() {
+            local path="$1"
+            local mode="$2"
+            if [ ! -d "$path" ]; then
+              install -d -m "$mode" "$path"
+            else
+              chmod "$mode" "$path" >/dev/null 2>&1 || true
+            fi
+          }
+
+          ensure_dir "$TARGET_HOME" 0755
+          ensure_dir "$TARGET_WORKSPACES" 0755
+
+          if [ -d "$REF_HOME" ]; then
+            log "installing reference home files"
+            cp -an "$REF_HOME/." "$TARGET_HOME"
+          else
+            log "reference home files not found at $REF_HOME"
+          fi
+
+          if [ -d "$TARGET_HOME/.ssh" ]; then
+            chmod 0700 "$TARGET_HOME/.ssh" || true
+            if compgen -G "$TARGET_HOME/.ssh/*" >/dev/null 2>&1; then
+              chmod 0600 "$TARGET_HOME/.ssh/"* || true
+            fi
+          fi
+
+          if [ "$(id -u)" -eq 0 ]; then
+            chown -R "$USER_UID:$USER_GID" "$TARGET_HOME" || log "warning: unable to chown $TARGET_HOME"
+            chown "$USER_UID:$USER_GID" "$TARGET_WORKSPACES" || true
+          else
+            log "not running as root; skipping chown"
+          fi
+
           if [ -x /usr/local/share/ssh-init.sh ]; then
             /usr/local/share/ssh-init.sh || true
           fi
@@ -209,7 +252,7 @@
 
         fakeNssExtended = pkgs.dockerTools.fakeNss.override {
           extraPasswdLines = [
-            "vscode:x:1000:1000:VS Code:/home/vscode:${pkgs.fish}/bin/fish"
+            "vscode:x:1000:1000:VS Code:/home:${pkgs.fish}/bin/fish"
             "sshd:x:75:75:Privilege-separated SSH:/run/sshd:/usr/sbin/nologin"
           ];
           extraGroupLines = [
@@ -279,9 +322,69 @@
           "prettier.prettierPath" = "${pkgs.nodePackages_latest.prettier}/bin/prettier";
         });
 
+        homeReference = pkgs.runCommand "homebase-home-reference" {} ''
+          mkdir -p $out/home/.config/fish/conf.d
+          mkdir -p $out/home/.ssh
+          mkdir -p $out/home/.vscode-server/data/Machine
+
+          install -Dm0644 ${pkgs.writeText "vscode-bashrc" ''
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv hook bash)"
+fi
+          ''} $out/home/.bashrc
+
+          install -Dm0644 ${pkgs.writeText "vscode-zshrc" ''
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv hook zsh)"
+fi
+          ''} $out/home/.zshrc
+
+          install -Dm0644 ${pkgs.writeText "nix.fish" ''
+if test -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
+  source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
+end
+if type -q direnv
+  eval (direnv hook fish)
+end
+          ''} $out/home/.config/fish/conf.d/nix.fish
+
+          install -Dm0644 ${pkgs.writeText "ssh-config" ''
+Host *
+  ServerAliveInterval 120
+  ServerAliveCountMax 3
+          ''} $out/home/.ssh/config
+
+          install -Dm0644 ${vscodeMachineSettings} \
+            $out/home/.vscode-server/data/Machine/settings.json
+        '';
+
+        homeReferenceShare = pkgs.runCommand "homebase-home-share" {} ''
+          mkdir -p $out/usr/local/share/homebase
+          cp -a ${homeReference}/home $out/usr/local/share/homebase/
+        '';
+
+        systemFiles = pkgs.runCommand "homebase-system-files" {} ''
+          mkdir -p $out/etc
+          mkdir -p $out/lib
+          mkdir -p $out/usr/sbin
+
+          cat > $out/etc/os-release <<EOF
+NAME="Homebase (Nix)"
+PRETTY_NAME="Homebase (Nix) Codespace Image"
+ID=homebase
+ID_LIKE=nixos
+HOME_URL="https://github.com/c0decafe/homebase"
+SUPPORT_URL="https://github.com/c0decafe/homebase/issues"
+BUG_REPORT_URL="https://github.com/c0decafe/homebase/issues"
+VERSION_ID="25.05"
+VERSION="nixos-25.05-small"
+BUILD_ID="${buildId}"
+EOF
+        '';
+
         baseTools = pkgs.buildEnv {
           name = "homebase-base-tools";
-          paths = runtimeTools ++ [ initShare ];
+          paths = runtimeTools ++ [ initShare homeReferenceShare ];
           pathsToLink = [ "/bin" "/share" "/usr" ];
         };
 
@@ -296,7 +399,7 @@
 
         # ---- Layers ----
         baseLayer = buildLayer {
-          copyToRoot = [ baseTools baseRuntime ];
+          copyToRoot = [ baseTools baseRuntime systemFiles ];
         };
 
         editorLayer = buildLayer {
@@ -410,64 +513,6 @@ EOF
           };
         };
 
-        homeRoot = pkgs.runCommand "homebase-home" {} ''
-            mkdir -p $out/etc
-            mkdir -p $out/lib
-            mkdir -p $out/usr/sbin
-            mkdir -p $out/home/vscode $out/workspaces
-            mkdir -p $out/home/vscode/.config/fish/conf.d
-            mkdir -p $out/home/vscode/.ssh
-            chmod 0700 $out/home/vscode/.ssh
-
-            cat > $out/etc/os-release <<EOF
-NAME="Homebase (Nix)"
-PRETTY_NAME="Homebase (Nix) Codespace Image"
-ID=homebase
-ID_LIKE=nixos
-HOME_URL="https://github.com/c0decafe/homebase"
-SUPPORT_URL="https://github.com/c0decafe/homebase/issues"
-BUG_REPORT_URL="https://github.com/c0decafe/homebase/issues"
-VERSION_ID="25.05"
-VERSION="nixos-25.05-small"
-BUILD_ID="${buildId}"
-EOF
-            install -Dm0644 ${vscodeMachineSettings} \
-              $out/home/vscode/.vscode-server/data/Machine/settings.json
-
-            install -Dm0644 ${pkgs.writeText "vscode-bashrc" ''
-if command -v direnv >/dev/null 2>&1; then
-  eval "$(direnv hook bash)"
-fi
-            ''} $out/home/vscode/.bashrc
-            install -Dm0644 ${pkgs.writeText "vscode-zshrc" ''
-if command -v direnv >/dev/null 2>&1; then
-  eval "$(direnv hook zsh)"
-fi
-            ''} $out/home/vscode/.zshrc
-            install -Dm0644 ${pkgs.writeText "nix.fish" ''
-if test -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
-  source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
-end
-if type -q direnv
-  eval (direnv hook fish)
-end
-            ''} $out/home/vscode/.config/fish/conf.d/nix.fish
-
-            install -Dm0644 ${pkgs.writeText "ssh-config" ''
-Host *
-  ServerAliveInterval 120
-  ServerAliveCountMax 3
-            ''} $out/home/vscode/.ssh/config
-          '';
-
-        homeLayer = buildLayer {
-          copyToRoot = [ homeRoot ];
-          perms = [
-            { path = homeRoot; regex = "^/home/vscode(/.*)?$"; uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
-            { path = homeRoot; regex = "^/workspaces(/.*)?$";  uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
-          ];
-        };
-
         nixConfigLayer = buildLayer {
           copyToRoot = pkgs.runCommand "homebase-nix-config" {} ''
             install -Dm0644 ${pkgs.writeText "nix.conf" ''
@@ -493,7 +538,6 @@ Host *
             # containerLayer
             # desktopLayer
             sshLayer
-            homeLayer
             nixConfigLayer
           ];
 

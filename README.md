@@ -33,7 +33,7 @@ as the artifact that CI pushes to GitHub Container Registry.
 3. The image already ships with:
    - system-wide `/etc/nix/nix.conf` enabling `nix-command flakes`,
    - direnv hooks baked into the default bash/zsh/fish configs (fish also sources the Nix profile),
-   - `/home/vscode/.vscode-server/.../settings.json` pointing at exact Nix store paths for helper binaries.
+   - `/home/.vscode-server/.../settings.json` pointing at exact Nix store paths for helper binaries.
    - Docker Engine + containerd installed via Nix; the devcontainer `postStartCommand` launches `dockerd` automatically.
 4. Open a terminal and start working; nix, direnv hooks, and editor paths are already configured. Run `nix develop` manually only when you need the dev shell.
 
@@ -72,8 +72,8 @@ export DGOSS_RUN_OPTS="--env GITHUB_USER=<your-gh-user>"
 sudo ./dgoss run ghcr.io/c0decafe/homebase:latest
 ```
 
-CI runs the same suite after publishing. For quick ad-hoc checks without dgoss you can still use
-`./scripts/smoke.sh <image>`, which executes the same commands sequentially.
+CI runs the same suite after publishing. For ad-hoc checks without dgoss, run the same commands
+manually (e.g. `docker run --rm ghcr.io/c0decafe/homebase:latest bash -lc 'sudo /usr/local/share/init.sh && ss -lnpt | grep :2222'`).
 
 ### ChatGPT / Codex integration
 
@@ -89,9 +89,9 @@ Defined in `flake.nix`:
   wrangler, network debuggers, etc.
 - **Base layers** - built entirely from Nix (no Debian base image) with a compatibility layer that injects `/etc/passwd`, `/bin/sh`, and CA certificates so the environment stands on its own.
 - **Docker runtime** - Docker Engine, containerd, runc, and friends are provided via Nix and started automatically when the container boots.
-- **Home/user layer** - ensures the `vscode` user exists with sudo privileges, fish/direnv hooks, and ready-to-use workspace directories.
+- **Home/user layer** - ensures the `vscode` user exists with sudo privileges. The actual dotfiles and workspace directories are installed at runtime by `/usr/local/share/init.sh`, which copies reference files from the Nix store into `/home` and `/workspaces`.
 - **VS Code layer** - drops the machine settings JSON under
-  `/home/vscode/.vscode-server/data/Machine/settings.json` with correct store paths for direnv and
+  `/home/.vscode-server/data/Machine/settings.json` with correct store paths for direnv and
   neovim.
 - **Environment defaults** - PATH set to `/bin`, `EDITOR=nvim`, CA certificates for git/curl/nix,
   and `initializeNixDatabase = true` so `nix` works inside the container.
@@ -105,11 +105,12 @@ Workflow: `.github/workflows/container.yml`
 
 1. Install nix via `cachix/install-nix-action`.
 2. Enable flake support in `~/.config/nix/nix.conf`.
-3. `nix build -L --no-write-lock-file .#homebase`
-4. Log into GHCR with the Actions token.
-5. Export `REGISTRY_AUTH_FILE` for skopeo.
-6. Push via `nix run .#homebase.copyTo -- docker://ghcr.io/c0decafe/homebase:latest`.
-7. Always print disk usage for debugging.
+3. Run `DeterminateSystems/magic-nix-cache-action@v2` so subsequent `nix` commands hydrate from the GitHub Actions cache.
+4. `nix build -L --no-write-lock-file .#homebase`
+5. Log into GHCR with the Actions token.
+6. Export `REGISTRY_AUTH_FILE` for skopeo.
+7. Push via `nix run .#homebase.copyTo -- docker://ghcr.io/c0decafe/homebase:latest`.
+8. Always print disk usage for debugging.
 
 Triggers: push to `main` or manual `workflow_dispatch`.
 

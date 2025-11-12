@@ -10,7 +10,7 @@
 - `nix flake check -L` – validates the flake, formatting, and build graph; run before opening PRs.
 - `nix build .#homebase` – builds the layered image JSON/tarball locally.
 - `nix run .#homebase.copyToRegistry -- docker://ghcr.io/<owner>/homebase:<tag>` – pushes a built image to GHCR via skopeo.
-- `docker run --rm ghcr.io/c0decafe/homebase:latest bash -lc "sudo -n /usr/local/share/ssh-init.sh"` – quick end-to-end smoke test.
+- `docker run --rm ghcr.io/c0decafe/homebase:latest bash -lc "sudo -n /usr/local/share/init.sh"` – quick end-to-end smoke test.
 
 ## Coding Style & Naming Conventions
 - Nix code: two-space indentation, trailing commas, prefer `let … in` blocks with descriptive names (`baseLayer`, `sshLayer`).
@@ -19,7 +19,7 @@
 
 ## Testing Guidelines
 - Rely on `nix flake check` for structural/tests; add targeted scripts when changing ssh or docker init flows.
-- CI smoke test (`.github/workflows/smoke.yml`) runs `sudo -n /usr/local/share/ssh-init.sh`; keep ssh changes compatible.
+- CI smoke test (`.github/workflows/smoke.yml`) runs `sudo -n /usr/local/share/init.sh`; keep ssh changes compatible.
 - When touching sshd or docker layers, manually run the docker smoke command above before pushing.
 
 ## Commit & Pull Request Guidelines
