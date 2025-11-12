@@ -155,15 +155,16 @@
             install -m 0755 ${spkgs.doas}/bin/doas bin/doas
             ln -s doas bin/sudo
 
-            chown 0:0 bin/doas
-            chmod 4755 bin/doas
-
             cat > etc/doas.conf <<'EOF'
 permit keepenv nopass :sudo
 permit root
 EOF
 
             rm -rf nix || true
+          '';
+          fakeRootCommands = ''
+            chown 0:0 bin/doas
+            chmod 4755 bin/doas
           '';
           config = {
             Entrypoint = [ "/bin/doas" "true" ];
