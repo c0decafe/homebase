@@ -40,6 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           docker load -i result
+          docker tag homebase-sudo-local:latest ghcr.io/${{ github.repository_owner }}/homebase-sudo:latest
           docker push ghcr.io/${{ github.repository_owner }}/homebase-sudo:latest
 
   build-test-push:
