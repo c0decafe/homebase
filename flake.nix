@@ -223,7 +223,7 @@
         sshRuntime = pkgs.buildEnv {
           name = "homebase-ssh-runtime";
           paths = [ pkgs.openssh ];
-          pathsToLink = [ "/bin" "/libexec" "/etc" ];
+          pathsToLink = [ "/bin" "/libexec" ];
         };
 
         sshConfig = pkgs.runCommand "homebase-ssh-assets" {} ''
