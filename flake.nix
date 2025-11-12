@@ -531,6 +531,13 @@ EOF
             ''} $out/usr/local/bin/dev-startup.sh
 
           '';
+        };
+
+        homePermsLayer = buildLayer {
+          copyToRoot = pkgs.runCommand "homebase-home-perms" {} ''
+            mkdir -p $out/home/vscode
+            mkdir -p $out/workspaces
+          '';
           perms = [
             { path = "copyToRoot"; regex = "^/home/vscode(/.*)?$"; uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
             { path = "copyToRoot"; regex = "^/workspaces(/.*)?$";  uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
