@@ -19,7 +19,15 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Pull image
         run: docker pull ghcr.io/c0decafe/homebase:latest
-      - name: Run smoke tests
+      - name: Install goss/dgoss
         env:
-          SMOKE_GITHUB_USER: c0decafe
-        run: ./scripts/smoke.sh ghcr.io/c0decafe/homebase:latest
+          GOSS_VERSION: v0.4.4
+        run: |
+          curl -L https://github.com/goss-org/goss/releases/download/${GOSS_VERSION}/goss-linux-amd64 | sudo tee /usr/local/bin/goss >/dev/null
+          curl -L https://github.com/goss-org/goss/releases/download/${GOSS_VERSION}/dgoss | sudo tee /usr/local/bin/dgoss >/dev/null
+          sudo chmod +x /usr/local/bin/goss /usr/local/bin/dgoss
+      - name: Run dgoss smoke tests
+        env:
+          GOSS_FILES_PATH: ${{ github.workspace }}
+          DGOSS_RUN_OPTS: "--env GITHUB_USER=c0decafe"
+        run: dgoss run ghcr.io/c0decafe/homebase:latest

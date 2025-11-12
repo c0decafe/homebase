@@ -59,13 +59,21 @@ nix build .#editor-settings
 
 ### Smoke test
 
-After building/pulling an image, run the automated regression checks:
+We keep container regressions in [`./.goss.yaml`](./.goss.yaml) and run them with
+[dgoss](https://github.com/goss-org/goss/blob/master/extras/dgoss/README.md):
 
 ```bash
-SMOKE_GITHUB_USER=<your-gh-user> ./scripts/smoke.sh ghcr.io/c0decafe/homebase:latest
+curl -L https://github.com/goss-org/goss/releases/download/v0.4.4/goss-linux-amd64 -o goss
+curl -L https://github.com/goss-org/goss/releases/download/v0.4.4/dgoss -o dgoss
+chmod +x goss dgoss
+
+export GOSS_FILES_PATH=$PWD
+export DGOSS_RUN_OPTS="--env GITHUB_USER=<your-gh-user>"
+sudo ./dgoss run ghcr.io/c0decafe/homebase:latest
 ```
 
-The script verifies base image metadata, `/home/vscode` ownership, `sudo`, `ssh-init` key download, and that `sshd` listens on port 2222. It defaults to `c0decafe` if `SMOKE_GITHUB_USER` (or `GITHUB_USER`) is unset.
+CI runs the same suite after publishing. For quick ad-hoc checks without dgoss you can still use
+`./scripts/smoke.sh <image>`, which executes the same commands sequentially.
 
 ### ChatGPT / Codex integration
 

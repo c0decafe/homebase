@@ -1,0 +1,43 @@
+file:
+  /home/vscode:
+    exists: true
+    mode: "0755"
+    owner: vscode
+    group: vscode
+  /workspaces:
+    exists: true
+    mode: "0755"
+    owner: vscode
+    group: vscode
+  /usr/local/share/ssh-init.sh:
+    exists: true
+    mode: "0755"
+  /bin/sudo:
+    exists: true
+    mode: "4755"
+    owner: root
+    group: root
+
+user:
+  vscode:
+    exists: true
+    uid: 1000
+    gid: 1000
+
+group:
+  sudo:
+    exists: true
+
+command:
+  sudo-works:
+    exec: ["bash","-lc","sudo -n true"]
+    exit-status: 0
+  ssh-init-runs:
+    exec: ["bash","-lc","sudo /usr/local/share/ssh-init.sh"]
+    exit-status: 0
+  ssh-init-authorized-keys:
+    exec: ["bash","-lc","sudo /usr/local/share/ssh-init.sh && test -f /home/vscode/.ssh/authorized_keys"]
+    exit-status: 0
+  sshd-listens-2222:
+    exec: ["bash","-lc","sudo /usr/local/share/ssh-init.sh && ss -lnpt | grep ':2222'"]
+    exit-status: 0
