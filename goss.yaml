@@ -30,14 +30,14 @@ group:
 
 command:
   sudo-works:
-    exec: ["bash","-lc","sudo -n true"]
+    exec: bash -lc "sudo -n true"
     exit-status: 0
   ssh-init-runs:
-    exec: ["bash","-lc","sudo /usr/local/share/ssh-init.sh"]
+    exec: bash -lc "sudo /usr/local/share/ssh-init.sh"
     exit-status: 0
   ssh-init-authorized-keys:
-    exec: ["bash","-lc","sudo /usr/local/share/ssh-init.sh && test -f /home/vscode/.ssh/authorized_keys"]
+    exec: bash -lc "sudo /usr/local/share/ssh-init.sh && test -f /home/vscode/.ssh/authorized_keys"
     exit-status: 0
   sshd-listens-2222:
-    exec: ["bash","-lc","sudo /usr/local/share/ssh-init.sh && ss -lnpt | grep ':2222'"]
+    exec: bash -lc "sudo /usr/local/share/ssh-init.sh && ss -lnpt | grep ':2222'"
     exit-status: 0
