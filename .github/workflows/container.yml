@@ -20,6 +20,12 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-25.05-small
 
+      - name: Configure Cachix
+        uses: cachix/cachix-action@v14
+        with:
+          name: c0decafe
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
       - name: Build sudo base image stream
         run: nix build -L --no-write-lock-file .#homebase-sudo
 
@@ -46,6 +52,12 @@ jobs:
         uses: cachix/install-nix-action@v27
         with:
           nix_path: nixpkgs=channel:nixos-25.05-small
+
+      - name: Configure Cachix
+        uses: cachix/cachix-action@v14
+        with:
+          name: c0decafe
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Flake checks
         run: nix flake check -L --no-write-lock-file
