@@ -162,18 +162,9 @@
 permit keepenv nopass :sudo
 permit root
 EOF
-            mkdir -p /lib/security
-            cp -a ${pkgs.pam}/lib/security/. /lib/security/
             chown 0:0 /bin/doas
             chmod 4755 /bin/doas
             touch /.wh.nix
-            # Provide a dummy PAM stack so doas succeeds
-            mkdir -p /etc/pam.d
-            cat > /etc/pam.d/doas <<'EOF'
-auth       sufficient pam_permit.so
-account    sufficient pam_permit.so
-session    sufficient pam_permit.so
-EOF
           '';
           config = {
             Entrypoint = [ "/bin/doas" "true" ];
