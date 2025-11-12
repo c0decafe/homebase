@@ -55,6 +55,15 @@
           ];
         };
 
+        sshLayer = buildLayer {
+          copyToRoot = pkgs.runCommand "homebase-ssh" {} ''
+            mkdir -p $out/run/sshd
+          '';
+          perms = [
+            { path = "copyToRoot"; regex = "^/run/sshd$"; uid = 75; gid = 75; dirMode = "0750"; }
+          ];
+        };
+
         dockerCompatPaths = [
           pkgs.dockerTools.usrBinEnv
           pkgs.dockerTools.binSh
