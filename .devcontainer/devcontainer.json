@@ -3,7 +3,11 @@
   "image": "ghcr.io/c0decafe/homebase:latest",
   "runArgs": [
     "--security-opt",
-    "no-new-privileges=false"
+    "no-new-privileges=false",
+    "--tmpfs",
+    "/tmp:rw,noexec,nosuid,size=1g",
+    "--tmpfs",
+    "/run:rw,noexec,nosuid,size=256m"
   ],
   "features": {},
   "customizations": {
