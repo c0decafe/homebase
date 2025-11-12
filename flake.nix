@@ -220,39 +220,42 @@
           ];
         };
 
+        sshRuntime = pkgs.buildEnv {
+          name = "homebase-ssh-runtime";
+          paths = [ pkgs.openssh ];
+          pathsToLink = [ "/bin" "/libexec" "/etc" ];
+        };
+
+        sshConfig = pkgs.runCommand "homebase-ssh-assets" {} ''
+          mkdir -p $out/run/sshd
+          mkdir -p $out/var/empty
+          mkdir -p $out/etc/ssh
+
+          install -Dm0644 ${pkgs.writeText "sshd_config" ''
+            Port 2222
+            ListenAddress 0.0.0.0
+            ListenAddress ::
+            HostKey /etc/ssh/ssh_host_rsa_key
+            HostKey /etc/ssh/ssh_host_ed25519_key
+            AuthorizedKeysFile .ssh/authorized_keys
+            PasswordAuthentication no
+            PermitRootLogin prohibit-password
+            ChallengeResponseAuthentication no
+            UsePAM no
+            AllowUsers vscode
+            AllowTcpForwarding yes
+            GatewayPorts no
+            X11Forwarding no
+            ClientAliveInterval 120
+            ClientAliveCountMax 3
+            Subsystem sftp ${pkgs.openssh}/libexec/sftp-server
+          ''} $out/etc/ssh/sshd_config
+
+          cp -a ${sshInitShare}/. $out/
+        '';
+
         sshLayer = buildLayer {
-          copyToRoot = pkgs.runCommand "homebase-ssh" {} ''
-            mkdir -p $out/bin
-            mkdir -p $out/libexec
-            mkdir -p $out/run/sshd
-            mkdir -p $out/var/empty
-            mkdir -p $out/etc/ssh
-
-            cp -a ${pkgs.openssh}/bin/. $out/bin/
-            cp -a ${pkgs.openssh}/libexec/. $out/libexec/
-
-            install -Dm0644 ${pkgs.writeText "sshd_config" ''
-              Port 2222
-              ListenAddress 0.0.0.0
-              ListenAddress ::
-              HostKey /etc/ssh/ssh_host_rsa_key
-              HostKey /etc/ssh/ssh_host_ed25519_key
-              AuthorizedKeysFile .ssh/authorized_keys
-              PasswordAuthentication no
-              PermitRootLogin prohibit-password
-              ChallengeResponseAuthentication no
-              UsePAM no
-              AllowUsers vscode
-              AllowTcpForwarding yes
-              GatewayPorts no
-              X11Forwarding no
-              ClientAliveInterval 120
-              ClientAliveCountMax 3
-              Subsystem sftp ${pkgs.openssh}/libexec/sftp-server
-            ''} $out/etc/ssh/sshd_config
-
-            cp -a ${sshInitShare}/. $out/
-          '';
+          copyToRoot = [ sshRuntime sshConfig ];
           perms = [
             { path = "copyToRoot"; regex = "^/run/sshd$"; uid = 75; gid = 75; dirMode = "0750"; }
           ];
