@@ -145,33 +145,42 @@
           '';
         };
 
-        sudoStreamImage = pkgs.dockerTools.streamLayeredImage {
-          name = "ghcr.io/c0decafe/homebase-sudo";
-          tag  = "latest";
-          fakeRootCommands = ''
-            set -eux
-            mkdir -p $out/bin $out/etc
+        sudoRootfs = pkgs.runCommandNoCC "homebase-sudo-rootfs" {
+          allowedRequisites = [ ];
+        } ''
+          set -eux
+          mkdir -p $out/bin $out/etc
 
-            cp ${spkgs.doas}/bin/doas $out/bin/doas
-            ln -s doas $out/bin/sudo
+          cp ${spkgs.doas}/bin/doas $out/bin/doas
+          ln -s doas $out/bin/sudo
 
-            cp ${spkgs.busybox}/bin/busybox $out/bin/busybox
-            ln -s busybox $out/bin/ls
-            ln -s busybox $out/bin/true
+          chown 0:0 $out/bin/doas
+          chmod 4755 $out/bin/doas
 
-            chown root:root $out/bin/doas
-            chmod 4755 $out/bin/doas
-
-            cat > $out/etc/doas.conf <<'EOF'
+          cat > $out/etc/doas.conf <<'EOF'
 permit keepenv nopass :sudo
 permit root
 EOF
 
-            rm -rf $out/nix
-          '';
+          file $out/bin/doas || true
+        '';
+
+        sudoStreamImage = pkgs.dockerTools.buildImage {
+          name = "homebase-sudo-local";
+          tag  = "latest";
+          copyToRoot = sudoRootfs;
           config = {
-            Cmd = [ "/bin/ls" "/" ];
+            Entrypoint = [ "/bin/doas" "true" ];
+            User = "0:0";
+            WorkingDir = "/";
           };
+        };
+
+        sudoBaseImage = n2c.nix2container.pullImage {
+          imageName = "ghcr.io/c0decafe/homebase-sudo";
+          imageDigest = "sha256:1fa1b83d8aa0513a4f346e6e3ec490dc2a0f5fdf0e727bf3e5ef274a0b552219";
+          sha256 = pkgs.lib.fakeSha256;
+          arch = "amd64";
         };
 
         sudoBaseImage = n2c.nix2container.pullImage {
