@@ -26,8 +26,7 @@
         runtimeTools = with pkgs; [
           bashInteractive coreutils findutils gnugrep gawk
           curl wget jq tree which gnused gnutar gzip xz
-          nixVersions.stable
-          fish
+          nixVersions.stable fish tmux
         ];
 
         editorTools = with pkgs; [
