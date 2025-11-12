@@ -457,7 +457,7 @@ EOF
               "GIT_SSL_CAINFO=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
             ];
-            Entrypoint = [ "/bin/bash" ];
+            Entrypoint = [ "/bin/bash" "-lc" ];
             WorkingDir = "/workspaces";
             User       = "vscode";
             Labels = {
