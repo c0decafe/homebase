@@ -27,6 +27,7 @@
           bashInteractive coreutils findutils gnugrep gawk
           curl wget jq tree which gnused gnutar gzip xz
           nixVersions.stable fish tmux
+          openssh
         ];
 
         editorTools = with pkgs; [
