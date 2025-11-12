@@ -376,7 +376,7 @@ EOF
               fi
 
               log "starting sshd"
-              ${pkgs.openssh}/bin/sshd -f /etc/ssh/sshd_config -D >/tmp/sshd.log 2>&1 &
+              ${pkgs.openssh}/bin/sshd -f /etc/ssh/sshd_config -D &
               pid=$!
 
               for _ in $(seq 1 40); do
