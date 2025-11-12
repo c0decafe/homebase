@@ -46,6 +46,11 @@
 
         tools = runtimeTools ++ editorTools ++ containerTools ++ desktopTools;
 
+        buildId =
+          if self ? rev && self.rev != null then builtins.substring 0 7 self.rev
+          else if self ? lastModified && self.lastModified != null then builtins.toString self.lastModified
+          else "dev";
+
         dockerInitBin = pkgs.writeShellScriptBin "docker-init" ''
           #!/usr/bin/env bash
           set -euo pipefail
@@ -391,7 +396,7 @@ SUPPORT_URL="https://github.com/c0decafe/homebase/issues"
 BUG_REPORT_URL="https://github.com/c0decafe/homebase/issues"
 VERSION_ID="25.05"
 VERSION="nixos-25.05-small"
-BUILD_ID="${self.rev or "dirty"}"
+BUILD_ID="${buildId}"
 EOF
 
             cat >> $out/home/vscode/.bashrc <<'EOF'
