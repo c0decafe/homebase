@@ -46,6 +46,131 @@
 
         tools = runtimeTools ++ editorTools ++ containerTools ++ desktopTools;
 
+        dockerInitScript = pkgs.writeScript "docker-init.sh" ''
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          export PATH=${pkgs.lib.makeBinPath [ pkgs.docker pkgs.containerd pkgs.runc pkgs.iptables pkgs.pigz pkgs.util-linux pkgs.procps pkgs.coreutils ]}:$PATH
+          SOCKET=/var/run/docker.sock
+
+          mkdir -p /var/lib/docker
+          mkdir -p /var/run
+          export DOCKER_RAMDISK=yes
+
+          if pgrep -x dockerd >/dev/null 2>&1; then
+            pkill dockerd || true
+          fi
+          if pgrep -x containerd >/dev/null 2>&1; then
+            pkill containerd || true
+          fi
+
+          if [ -d /sys/kernel/security ] && ! mountpoint -q /sys/kernel/security; then
+            mount -t securityfs none /sys/kernel/security || echo "WARN: could not mount securityfs" >&2
+          fi
+
+          if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
+            mkdir -p /sys/fs/cgroup/init
+            xargs -rn1 < /sys/fs/cgroup/cgroup.procs > /sys/fs/cgroup/init/cgroup.procs || true
+            sed -e 's/ / +/g' -e 's/^/+/' < /sys/fs/cgroup/cgroup.controllers > /sys/fs/cgroup/cgroup.subtree_control
+          fi
+
+          if pgrep -x dockerd >/dev/null; then
+            echo "dockerd already running" >&2
+            exit 0
+          fi
+
+          if pgrep -x containerd >/dev/null; then
+            pkill containerd || true
+          fi
+
+          rm -f "$SOCKET"
+
+          ${pkgs.containerd}/bin/containerd >/tmp/containerd.log 2>&1 &
+          sleep 2
+
+          ${pkgs.docker}/bin/dockerd --host=unix://$SOCKET > /tmp/dockerd.log 2>&1 &
+
+          for i in $(seq 1 30); do
+            if ${pkgs.docker}/bin/docker info >/dev/null 2>&1; then
+              chown root:docker "$SOCKET" || true
+              chmod 660 "$SOCKET" || true
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "dockerd failed to start" >&2
+          exit 1
+        '';
+
+        sshInitScript = pkgs.writeScript "ssh-init.sh" ''
+          #!/usr/bin/env bash
+          set -euo pipefail
+          PATH=${pkgs.lib.makeBinPath [ pkgs.procps pkgs.coreutils pkgs.openssh pkgs.util-linux ]}:$PATH
+
+          log() { echo "[ssh-init] $*" >&2; }
+          fail() { log "$1"; exit 1; }
+
+          if [ "$(id -u)" -ne 0 ]; then
+            fail "ssh-init must run as root (use sudo)"
+          fi
+
+          if [ ! -x ${pkgs.openssh}/bin/sshd ]; then
+            fail "sshd binary missing"
+          fi
+
+          if [ ! -f /etc/ssh/sshd_config ]; then
+            fail "/etc/ssh/sshd_config not found"
+          fi
+
+          mkdir -p /var/run/sshd || fail "cannot create /var/run/sshd"
+          chmod 0755 /var/run/sshd || fail "cannot chmod /var/run/sshd"
+
+          if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then
+            log "generating host keys"
+            ${pkgs.openssh}/bin/ssh-keygen -A || fail "ssh-keygen failed"
+          fi
+
+          chmod 0600 /etc/ssh/ssh_host_*_key 2>/dev/null || true
+          chmod 0644 /etc/ssh/ssh_host_*_key.pub 2>/dev/null || true
+
+          if pgrep -x sshd >/dev/null 2>&1; then
+            log "sshd already running"
+            exit 0
+          fi
+
+          log "starting sshd"
+          ${pkgs.openssh}/bin/sshd -f /etc/ssh/sshd_config -D &
+          pid=$!
+
+          for _ in $(seq 1 40); do
+            if pgrep -x sshd >/dev/null 2>&1; then
+              log "sshd ready"
+              exit 0
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              wait "$pid" || true
+              fail "sshd exited before becoming ready"
+            fi
+            sleep 0.25
+          done
+
+          fail "sshd did not report ready in time"
+        '';
+
+        initScript = pkgs.writeScript "init.sh" ''
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          if [ -x /usr/local/share/docker-init.sh ]; then
+            /usr/local/share/docker-init.sh || true
+          fi
+
+          if [ -x /usr/local/share/ssh-init.sh ]; then
+            /usr/local/share/ssh-init.sh || true
+          fi
+        '';
+
         fakeNssExtended = pkgs.dockerTools.fakeNss.override {
           extraPasswdLines = [
             "vscode:x:1000:1000:VS Code:/home/vscode:${pkgs.fish}/bin/fish"
