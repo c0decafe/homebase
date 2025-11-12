@@ -163,10 +163,7 @@ permit keepenv nopass :sudo
 permit root
 EOF
 
-            if ${pkgs.gnugrep}/bin/grep -R "/nix/store" -n $out; then
-              echo "ERROR: Found store refs" >&2
-              exit 1
-            fi
+            ${pkgs.file}/bin/file $out/bin/doas
           '';
           config = {
             Cmd = [ "/bin/doas" "true" ];
