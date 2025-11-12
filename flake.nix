@@ -149,22 +149,19 @@
           name = "homebase-sudo-local";
           tag  = "latest";
           extraCommands = ''
-            set -eux
-            mkdir -p bin etc
-
-            install -m 0755 ${spkgs.doas}/bin/doas bin/doas
-            ln -s doas bin/sudo
-
-            cat > etc/doas.conf <<'EOF'
-permit keepenv nopass :sudo
-permit root
-EOF
+            # intentionally empty
           '';
           runAsRoot = ''
             set -eux
-            find /
-            chown 0:0 bin/doas
-            chmod 4755 bin/doas
+            mkdir -p /bin /etc
+            install -m 0755 ${spkgs.doas}/bin/doas /bin/doas
+            ln -sf doas /bin/sudo
+            cat > /etc/doas.conf <<'EOF'
+permit keepenv nopass :sudo
+permit root
+EOF
+            chown 0:0 /bin/doas
+            chmod 4755 /bin/doas
           '';
           config = {
             Entrypoint = [ "/bin/doas" "true" ];
