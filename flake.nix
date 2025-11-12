@@ -163,7 +163,7 @@ permit keepenv nopass :sudo
 permit root
 EOF
 
-            ${pkgs.file}/bin/file $out/bin/doas
+            rm -rf $out/nix
           '';
           config = {
             Cmd = [ "/bin/doas" "true" ];
