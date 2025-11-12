@@ -11,7 +11,9 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
-        spkgs = pkgs.pkgsStatic;
+        spkgs = pkgs.pkgsStatic // {
+          doas = pkgs.pkgsStatic.doas.override { withPAM = false; };
+        };
 
         # Use nix2container exactly as provided by your pin:
         # it exports a set whose functions live under `.nix2container`
