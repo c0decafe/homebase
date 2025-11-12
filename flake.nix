@@ -25,21 +25,23 @@
         # ---- Base tools (lean) ----
         runtimeTools = with pkgs; [
           bashInteractive coreutils findutils gnugrep gawk
-          curl wget jq tree which gnused gnutar gzip xz pigz iptables
+          curl wget jq tree which gnused gnutar gzip xz
+          nixVersions.stable
+          fish
         ];
 
         editorTools = with pkgs; [
-          git neovim ripgrep fd direnv nix-direnv fish codex pandoc
+          git neovim ripgrep fd direnv nix-direnv codex pandoc
           gitAndTools.git-lfs
         ];
 
         containerTools = with pkgs; [
           docker docker-compose containerd runc skopeo rsync rclone
-          nixVersions.stable
+          pigz iptables
         ];
 
         desktopTools = with pkgs; [
-          firefox x11vnc novnc xorg.xvfb
+          firefox
         ];
 
         tools = runtimeTools ++ editorTools ++ containerTools ++ desktopTools;
