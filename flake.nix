@@ -106,8 +106,8 @@
         '';
 
         dockerInitShare = pkgs.runCommand "docker-init-share" {} ''
-          mkdir -p $out/usr/local/share
-          ln -s ${dockerInitBin}/bin/docker-init $out/usr/local/share/docker-init.sh
+          install -Dm0755 ${dockerInitBin}/bin/docker-init \
+            $out/usr/local/share/docker-init.sh
         '';
 
         sshInitBin = pkgs.writeShellScriptBin "ssh-init" ''
@@ -143,22 +143,36 @@
 
           github_user="''${GITHUB_USER:-}"
           vscode_home="/home"
-          if [ -n "$github_user" ] && [ -d "$vscode_home" ]; then
+          if [ -d "$vscode_home" ]; then
             ssh_dir="$vscode_home/.ssh"
+            auth_file="$ssh_dir/authorized_keys"
             install -d -m 0700 -o 1000 -g 1000 "$ssh_dir"
             keys_base="''${GITHUB_SERVER_URL:-https://github.com}"
             keys_url="''${keys_base%/}/''${github_user}.keys"
-            if curl -fsSL --connect-timeout 5 --max-time 10 "$keys_url" -o "$ssh_dir/authorized_keys.tmp"; then
-              mv "$ssh_dir/authorized_keys.tmp" "$ssh_dir/authorized_keys"
-              chown 1000:1000 "$ssh_dir/authorized_keys"
-              chmod 0600 "$ssh_dir/authorized_keys"
-              log "installed authorized_keys from $keys_url"
-            else
-              log "warning: failed to download keys from $keys_url"
-              rm -f "$ssh_dir/authorized_keys.tmp"
+
+            if [ -n "$github_user" ]; then
+              if curl -fsSL --connect-timeout 5 --max-time 10 "$keys_url" -o "$auth_file.tmp"; then
+                mv "$auth_file.tmp" "$auth_file"
+                chown 1000:1000 "$auth_file"
+                chmod 0600 "$auth_file"
+                log "installed authorized_keys from $keys_url"
+              else
+                log "warning: failed to download keys from $keys_url"
+                rm -f "$auth_file.tmp"
+              fi
+            fi
+
+            if [ ! -f "$auth_file" ]; then
+              : > "$auth_file"
+            fi
+            chown 1000:1000 "$auth_file"
+            chmod 0600 "$auth_file"
+
+            if [ -z "$github_user" ]; then
+              log "no GITHUB_USER set; created empty authorized_keys"
             fi
           else
-            log "no GITHUB_USER set; skipping authorized_keys download"
+            log "vscode home not found at $vscode_home"
           fi
 
           if pgrep -x sshd >/dev/null 2>&1; then
@@ -186,8 +200,8 @@
         '';
 
         sshInitShare = pkgs.runCommand "ssh-init-share" {} ''
-          mkdir -p $out/usr/local/share
-          ln -s ${sshInitBin}/bin/ssh-init $out/usr/local/share/ssh-init.sh
+          install -Dm0755 ${sshInitBin}/bin/ssh-init \
+            $out/usr/local/share/ssh-init.sh
         '';
 
         initBin = pkgs.writeShellScriptBin "init" ''
@@ -246,8 +260,8 @@
         '';
 
         initShare = pkgs.runCommand "init-share" {} ''
-          mkdir -p $out/usr/local/share
-          ln -s ${initBin}/bin/init $out/usr/local/share/init.sh
+          install -Dm0755 ${initBin}/bin/init \
+            $out/usr/local/share/init.sh
         '';
 
         fakeNssExtended = pkgs.dockerTools.fakeNss.override {
@@ -392,7 +406,11 @@ EOF
           mkdir -p $out/run
           mkdir -p $out/var/log
           mkdir -p $out/tmp
+          mkdir -p $out/home
+          mkdir -p $out/workspaces
           chmod 0755 $out/run
+          chmod 0755 $out/home
+          chmod 0755 $out/workspaces
           chmod 1777 $out/tmp
           ln -sf /run $out/var/run
         '';

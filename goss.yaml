@@ -30,6 +30,7 @@ command:
     exit-status: 0
   home-dir-ownership:
     exec: bash -lc "sudo /usr/local/share/init.sh && stat -c '%U:%G %a %n' /home /workspaces"
+    exit-status: 0
     stdout:
       - '^vscode:vscode 755 /home$'
       - '^vscode:vscode 755 /workspaces$'
@@ -47,5 +48,6 @@ command:
     exit-status: 0
   sudo-setuid:
     exec: bash -lc "stat -c '%a' /bin/sudo"
+    exit-status: 0
     stdout:
       - '^4755$'
