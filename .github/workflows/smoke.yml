@@ -29,5 +29,5 @@ jobs:
       - name: Run dgoss smoke tests
         env:
           GOSS_FILES_PATH: ${{ github.workspace }}
-          DGOSS_RUN_OPTS: "--env GITHUB_USER=c0decafe"
-        run: dgoss run ghcr.io/c0decafe/homebase:latest
+          DGOSS_RUN_OPTS: "--entrypoint /bin/bash --env GITHUB_USER=c0decafe"
+        run: dgoss run ghcr.io/c0decafe/homebase:latest -lc "sleep infinity"
