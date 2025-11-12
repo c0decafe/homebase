@@ -461,7 +461,7 @@ Host *
           '';
 
         homeLayer = buildLayer {
-          copyToRoot = homeRoot;
+          copyToRoot = [ homeRoot ];
           perms = [
             { path = homeRoot; regex = "^/home/vscode(/.*)?$"; uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
             { path = homeRoot; regex = "^/workspaces(/.*)?$";  uid = 1000; gid = 1000; dirMode = "0755"; fileMode = "0644"; }
