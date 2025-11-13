@@ -11,6 +11,12 @@ file:
     mode: "0755"
     owner: vscode
     group: vscode
+  /home/.ssh/authorized_keys:
+    exists: true
+    filetype: file
+    mode: "0600"
+    owner: vscode
+    group: vscode
 
 command:
   sshd-listens-2222:
