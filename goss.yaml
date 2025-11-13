@@ -23,34 +23,29 @@ group:
     exists: true
 
 command:
-  init-runs:
-    exec: bash -lc "sudo /usr/local/share/init.sh"
-    exit-status: 0
-    timeout: 30000
-  init-script-exec:
-    exec: bash -lc "test -x /usr/local/share/init.sh"
-    exit-status: 0
   home-dir-ownership:
     exec: bash -lc "stat -c '%U:%G %a %n' /home /workspaces"
     exit-status: 0
     stdout:
       - '^vscode:vscode 755 /home$'
       - '^vscode:vscode 755 /workspaces$'
-  sudo-works:
-    exec: bash -lc "sudo -n true"
-    exit-status: 0
-  ssh-init-script-exec:
-    exec: bash -lc "test -x /usr/local/share/ssh-init.sh"
-    exit-status: 0
-  ssh-init-authorized-keys:
-    exec: bash -lc "test -f /home/.ssh/authorized_keys"
-    exit-status: 0
-  sshd-listens-2222:
-    exec: bash -lc "sudo ss -lnpt | grep ':2222'"
-    exit-status: 0
   sudo-symlink:
     exec: bash -lc "test \"$(readlink /bin/sudo)\" = 'doas'"
     exit-status: 0
   doas-setuid:
     exec: bash -lc "test \"$(stat -c '%a' /bin/doas)\" = '4755'"
     exit-status: 0
+  sudo-works:
+    exec: bash -lc "sudo -n true"
+    exit-status: 0
+  ssh-init-script-exec:
+    exec: bash -lc "test -x /usr/local/share/ssh-init.sh"
+    exit-status: 0
+# Temporarily disabled until GitHub key download is re-enabled.
+#  ssh-init-authorized-keys:
+#    exec: bash -lc "test -f /home/.ssh/authorized_keys"
+#    exit-status: 0
+  init-and-sshd:
+    exec: bash -lc "sudo /usr/local/share/init.sh && sudo ss -lnpt | grep ':2222'"
+    exit-status: 0
+    timeout: 30000
