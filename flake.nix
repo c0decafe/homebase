@@ -316,11 +316,7 @@ EOF
 
           if [ "$mode" = "entrypoint" ]; then
             if [ "${#entrypoint_cmd[@]}" -eq 0 ]; then
-              if env | grep -q '^CODESPACES='; then
-                entrypoint_cmd=(/bin/bash -l)
-              else
-                entrypoint_cmd=(sleep infinity)
-              fi
+              entrypoint_cmd=(sleep infinity)
             fi
             log "entrypoint exec: ''${entrypoint_cmd[*]}"
             exec "''${entrypoint_cmd[@]}"
