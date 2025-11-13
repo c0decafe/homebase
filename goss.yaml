@@ -26,12 +26,12 @@ command:
   init-runs:
     exec: bash -lc "sudo /usr/local/share/init.sh"
     exit-status: 0
-    timeout: 30
+    timeout: 30000
   init-script-exec:
     exec: bash -lc "test -x /usr/local/share/init.sh"
     exit-status: 0
   home-dir-ownership:
-    exec: bash -lc "sudo /usr/local/share/init.sh >/dev/null && stat -c '%U:%G %a %n' /home /workspaces"
+    exec: bash -lc "stat -c '%U:%G %a %n' /home /workspaces"
     exit-status: 0
     stdout:
       - '^vscode:vscode 755 /home$'
@@ -43,7 +43,7 @@ command:
     exec: bash -lc "test -x /usr/local/share/ssh-init.sh"
     exit-status: 0
   ssh-init-authorized-keys:
-    exec: bash -lc "sudo test -f /home/.ssh/authorized_keys"
+    exec: bash -lc "test -f /home/.ssh/authorized_keys"
     exit-status: 0
   sshd-listens-2222:
     exec: bash -lc "sudo ss -lnpt | grep ':2222'"
