@@ -496,13 +496,9 @@ EOF
 
         baseRuntime = pkgs.runCommand "homebase-base-runtime" {} ''
           mkdir -p $out/run
-          mkdir -p $out/var/log
           mkdir -p $out/tmp
-          mkdir -p $out/home
-          mkdir -p $out/workspaces
+          mkdir -p $out/var
           chmod 0755 $out/run
-          chmod 0755 $out/home
-          chmod 0755 $out/workspaces
           chmod 1777 $out/tmp
           ln -sf /run $out/var/run
         '';
