@@ -315,7 +315,7 @@ EOF
 #         fi
 
           if [ "$mode" = "entrypoint" ]; then
-            if [ "${#entrypoint_cmd[@]}" -eq 0 ]; then
+            if [ "''${#entrypoint_cmd[@]}" -eq 0 ]; then
               entrypoint_cmd=(sleep infinity)
             fi
             log "entrypoint exec: ''${entrypoint_cmd[*]}"
