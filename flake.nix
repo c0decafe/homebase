@@ -248,6 +248,11 @@ default when CMD is omitted).
 EOF
           }
 
+          if [ "$(id -u)" -ne 0 ]; then
+            log "init.sh must run as root (use sudo)"
+            exit 1
+          fi
+
           mode="oneshot"
           entrypoint_cmd=()
 
@@ -280,13 +285,9 @@ EOF
           ensure_dir() {
             local path="$1"
             local mode="$2"
-            if [ ! -d "$path" ]; then
-              install -d -m "$mode" "$path"
-            fi
-            chmod "$mode" "$path" >/dev/null 2>&1 || true
-            if [ "$(id -u)" -eq 0 ]; then
-              chown "$USER_UID:$USER_GID" "$path" >/dev/null 2>&1 || log "warning: unable to chown $path"
-            fi
+            install -d -m "$mode" "$path"
+            chmod "$mode" "$path"
+            chown "$USER_UID:$USER_GID" "$path"
           }
 
           ensure_dir "$TARGET_HOME" 0755
