@@ -316,7 +316,8 @@ EOF
 
           if [ "$mode" = "entrypoint" ]; then
             if [ "${#entrypoint_cmd[@]}" -eq 0 ]; then
-              if [ -n "''${CODESPACES:-}" ]; then
+              codespaces_env="$(printenv CODESPACES 2>/dev/null || true)"
+              if [ -n "$codespaces_env" ]; then
                 entrypoint_cmd=(/bin/bash -l)
               else
                 entrypoint_cmd=(sleep infinity)

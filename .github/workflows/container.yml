@@ -31,6 +31,9 @@ jobs:
           name: c0decafe
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
+      - name: Eval sudo base flake
+        run: nix eval --no-write-lock-file .#homebase-sudo.drvPath
+
       - name: Build sudo base image stream
         run: nix build -L --no-write-lock-file .#homebase-sudo
 
