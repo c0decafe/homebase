@@ -280,7 +280,9 @@ EOF
           ensure_dir() {
             local path="$1"
             local mode="$2"
-            install -d -m "$mode" "$path"
+            if [ ! -d "$path" ]; then
+              install -d -m "$mode" "$path"
+            fi
             chmod "$mode" "$path" >/dev/null 2>&1 || true
             if [ "$(id -u)" -eq 0 ]; then
               chown "$USER_UID:$USER_GID" "$path" >/dev/null 2>&1 || log "warning: unable to chown $path"
