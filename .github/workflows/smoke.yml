@@ -24,18 +24,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Pull image
         run: docker pull ghcr.io/c0decafe/homebase:latest
-      - name: Install goss/dgoss
-        env:
-          GOSS_VERSION: v0.4.4
-        run: |
-          curl -L https://github.com/goss-org/goss/releases/download/${GOSS_VERSION}/goss-linux-amd64 | sudo tee /usr/local/bin/goss >/dev/null
-          curl -L https://github.com/goss-org/goss/releases/download/${GOSS_VERSION}/dgoss | sudo tee /usr/local/bin/dgoss >/dev/null
-          sudo chmod +x /usr/local/bin/goss /usr/local/bin/dgoss
       - name: Launch smoke container
         run: |
           docker run -d --name homebase-smoke --entrypoint /bin/bash ghcr.io/c0decafe/homebase:latest -lc "sleep infinity"
 
-      - name: Install goss inside container
+      - name: Verify goss wrappers
         run: |
           docker exec homebase-smoke bash -lc "goss-pre --version >/dev/null"
 
