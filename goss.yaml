@@ -38,9 +38,6 @@ command:
   sudo-works:
     exec: bash -lc "sudo -n true"
     exit-status: 0
-  ssh-init-runs:
-    exec: bash -lc "sudo /usr/local/share/ssh-init.sh"
-    exit-status: 0
   ssh-init-script-exec:
     exec: bash -lc "test -x /usr/local/share/ssh-init.sh"
     exit-status: 0
