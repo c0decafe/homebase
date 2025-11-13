@@ -11,32 +11,6 @@ file:
     mode: "0755"
     owner: vscode
     group: vscode
-  /usr/local/share/init.sh:
-    exists: true
-    filetype: symlink
-  /usr/local/share/ssh-init.sh:
-    exists: true
-    filetype: symlink
-  /bin/doas:
-    exists: true
-    filetype: file
-    mode: "4755"
-    owner: root
-    group: root
-  /bin/sudo:
-    exists: true
-    filetype: symlink
-    linked-to: doas
-
-user:
-  vscode:
-    exists: true
-    uid: 1000
-    gid: 1000
-
-group:
-  sudo:
-    exists: true
 
 command:
   sshd-listens-2222:
