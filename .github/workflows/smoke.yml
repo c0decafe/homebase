@@ -33,7 +33,7 @@ jobs:
           sudo chmod +x /usr/local/bin/goss /usr/local/bin/dgoss
       - name: Launch smoke container
         run: |
-          docker run -d --name homebase-smoke ghcr.io/c0decafe/homebase:latest bash -lc "sleep infinity"
+          docker run -d --name homebase-smoke --entrypoint /bin/bash ghcr.io/c0decafe/homebase:latest -lc "sleep infinity"
 
       - name: Install goss inside container
         run: |

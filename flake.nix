@@ -231,6 +231,45 @@
 
           log() { echo "[init] $*" >&2; }
 
+          usage() {
+            cat >&2 <<'EOF'
+Usage: init.sh [--entrypoint [CMD...]]
+
+Run without flags to perform a single initialization pass (legacy behavior).
+Use --entrypoint to run initialization before exec'ing CMD (or a sensible
+default when CMD is omitted).
+EOF
+          }
+
+          mode="oneshot"
+          entrypoint_cmd=()
+
+          if [ "$#" -gt 0 ]; then
+            case "$1" in
+              --entrypoint)
+                mode="entrypoint"
+                shift
+                if [ "$#" -gt 0 ]; then
+                  entrypoint_cmd=("$@")
+                fi
+                ;;
+              -h|--help)
+                usage
+                exit 0
+                ;;
+              --)
+                shift
+                mode="entrypoint"
+                entrypoint_cmd=("$@")
+                ;;
+              *)
+                log "unknown argument: $1"
+                usage
+                exit 1
+                ;;
+            esac
+          fi
+
           ensure_dir() {
             local path="$1"
             local mode="$2"
@@ -274,6 +313,18 @@
 #         if [ -x /usr/local/share/docker-init.sh ]; then
 #           /usr/local/share/docker-init.sh || true
 #         fi
+
+          if [ "$mode" = "entrypoint" ]; then
+            if [ "${#entrypoint_cmd[@]}" -eq 0 ]; then
+              if [ -n "''${CODESPACES:-}" ]; then
+                entrypoint_cmd=(/bin/bash -l)
+              else
+                entrypoint_cmd=(sleep infinity)
+              fi
+            fi
+            log "entrypoint exec: ''${entrypoint_cmd[*]}"
+            exec "''${entrypoint_cmd[@]}"
+          fi
         '';
 
         initShare = pkgs.runCommand "init-share" {} ''
@@ -590,6 +641,7 @@ EOF
           layers = [
             compatLayer
             baseLayer
+            gossLayer
             # editorLayer
             # containerLayer
             # desktopLayer

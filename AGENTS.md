@@ -5,6 +5,7 @@
 - `.github/workflows/` contains CI pipelines: `container.yml` builds & pushes images; `smoke.yml` runs ssh smoke tests.
 - Runtime assets (scripts, configs) are created on-the-fly via `buildLayer`/`dockerTools` in `flake.nix`; no separate `src/` tree exists.
 - Generated images publish to `ghcr.io/c0decafe/homebase` (full stack) and `ghcr.io/c0decafe/homebase-sudo` (bootstrap layer).
+- When introducing a new docker layer in `flake.nix`, always remember to add it to the `layers = [ ... ]` list so it becomes part of the final image.
 
 ## Build, Test, and Development Commands
 - `nix flake check -L` – validates the flake, formatting, and build graph; run before opening PRs.
