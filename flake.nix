@@ -122,6 +122,11 @@
             fail "ssh-init must run as root (use sudo)"
           fi
 
+          sshd_running=0
+          if pgrep -x sshd >/dev/null 2>&1; then
+            sshd_running=1
+          fi
+
           if [ ! -x ${pkgs.openssh}/bin/sshd ]; then
             fail "sshd binary missing"
           fi
@@ -142,6 +147,7 @@
           chmod 0644 /etc/ssh/ssh_host_*_key.pub 2>/dev/null || true
 
           github_user="''${GITHUB_USER:-}"
+          force_keys="''${SSH_INIT_FORCE_KEYS:-}"
           vscode_home="/home"
           if [ -d "$vscode_home" ]; then
             ssh_dir="$vscode_home/.ssh"
@@ -150,7 +156,14 @@
             keys_base="''${GITHUB_SERVER_URL:-https://github.com}"
             keys_url="''${keys_base%/}/''${github_user}.keys"
 
+            refresh_keys=0
             if [ -n "$github_user" ]; then
+              if [ "$sshd_running" -eq 0 ] || [ ! -f "$auth_file" ] || [ -n "$force_keys" ]; then
+                refresh_keys=1
+              fi
+            fi
+
+            if [ "$refresh_keys" -eq 1 ]; then
               if curl -fsSL --connect-timeout 5 --max-time 10 "$keys_url" -o "$auth_file.tmp"; then
                 mv "$auth_file.tmp" "$auth_file"
                 chown 1000:1000 "$auth_file"
@@ -175,7 +188,7 @@
             log "vscode home not found at $vscode_home"
           fi
 
-          if pgrep -x sshd >/dev/null 2>&1; then
+          if [ "$sshd_running" -eq 1 ]; then
             log "sshd already running"
             exit 0
           fi
@@ -221,8 +234,10 @@
             local mode="$2"
             if [ ! -d "$path" ]; then
               install -d -m "$mode" "$path"
-            else
-              chmod "$mode" "$path" >/dev/null 2>&1 || true
+            fi
+            chmod "$mode" "$path" >/dev/null 2>&1 || true
+            if [ "$(id -u)" -eq 0 ]; then
+              chown "$USER_UID:$USER_GID" "$path" >/dev/null 2>&1 || log "warning: unable to chown $path"
             fi
           }
 
