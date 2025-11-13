@@ -7,16 +7,10 @@ file:
     filetype: directory
   /usr/local/share/init.sh:
     exists: true
-    filetype: file
-    mode: "0755"
-    owner: root
-    group: root
+    filetype: symlink
   /usr/local/share/ssh-init.sh:
     exists: true
-    filetype: file
-    mode: "0755"
-    owner: root
-    group: root
+    filetype: symlink
   /bin/doas:
     exists: true
     filetype: file
@@ -39,6 +33,12 @@ group:
     exists: true
 
 command:
+  init-is-executable:
+    exec: bash -lc "test -x /usr/local/share/init.sh"
+    exit-status: 0
+  ssh-init-is-executable:
+    exec: bash -lc "test -x /usr/local/share/ssh-init.sh"
+    exit-status: 0
   sudo-works:
     exec: bash -lc "sudo -n true"
     exit-status: 0

@@ -13,16 +13,10 @@ file:
     group: vscode
   /usr/local/share/init.sh:
     exists: true
-    filetype: file
-    mode: "0755"
-    owner: root
-    group: root
+    filetype: symlink
   /usr/local/share/ssh-init.sh:
     exists: true
-    filetype: file
-    mode: "0755"
-    owner: root
-    group: root
+    filetype: symlink
   /bin/doas:
     exists: true
     filetype: file
