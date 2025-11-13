@@ -20,6 +20,7 @@
 - Commit messages follow short imperative sentences (e.g., “Add doas PAM stack”, “Tag sudo base image before pushing”).
 
 ## Testing Guidelines
+- After every change, double-check that the relevant tests cover the behavior and update them when needed.
 - Rely on `nix flake check` for structural/tests; add targeted scripts when changing ssh or docker init flows.
 - CI smoke test (`.github/workflows/smoke.yml`) runs `sudo -n /usr/local/share/init.sh`; keep ssh changes compatible.
 - When touching sshd or docker layers, manually run the docker smoke command above before pushing.

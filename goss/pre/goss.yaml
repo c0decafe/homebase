@@ -1,10 +1,4 @@
 file:
-  /home:
-    exists: true
-    filetype: directory
-  /workspaces:
-    exists: true
-    filetype: directory
   /usr/local/share/init.sh:
     exists: true
     filetype: symlink
