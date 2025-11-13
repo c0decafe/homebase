@@ -49,6 +49,9 @@ command:
   sshd-listens-2222:
     exec: bash -lc "sudo /usr/local/share/init.sh && ss -lnpt | grep ':2222'"
     exit-status: 0
-  sudo-setuid:
-    exec: bash -lc "test \"$(stat -c '%a' /bin/sudo)\" = '4755'"
+  sudo-symlink:
+    exec: bash -lc "test \"$(readlink /bin/sudo)\" = 'doas'"
+    exit-status: 0
+  doas-setuid:
+    exec: bash -lc "test \"$(stat -c '%a' /bin/doas)\" = '4755'"
     exit-status: 0
