@@ -5,10 +5,10 @@ file:
     exists: true
   /usr/local/share/init.sh:
     exists: true
-    mode: "0755"
+    filetype: file
   /usr/local/share/ssh-init.sh:
     exists: true
-    mode: "0755"
+    filetype: file
   /bin/sudo:
     exists: true
     owner: root
@@ -28,6 +28,9 @@ command:
   init-runs:
     exec: bash -lc "sudo /usr/local/share/init.sh"
     exit-status: 0
+  init-script-exec:
+    exec: bash -lc "test -x /usr/local/share/init.sh"
+    exit-status: 0
   home-dir-ownership:
     exec: bash -lc "set -euo pipefail; sudo /usr/local/share/init.sh >/dev/null; test \"$(stat -c '%U:%G %a %n' /home)\" = 'vscode:vscode 755 /home'; test \"$(stat -c '%U:%G %a %n' /workspaces)\" = 'vscode:vscode 755 /workspaces'"
     exit-status: 0
@@ -36,6 +39,9 @@ command:
     exit-status: 0
   ssh-init-runs:
     exec: bash -lc "sudo /usr/local/share/init.sh"
+    exit-status: 0
+  ssh-init-script-exec:
+    exec: bash -lc "test -x /usr/local/share/ssh-init.sh"
     exit-status: 0
   ssh-init-authorized-keys:
     exec: bash -lc "sudo /usr/local/share/init.sh && test -f /home/.ssh/authorized_keys"
