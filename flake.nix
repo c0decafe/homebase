@@ -48,7 +48,7 @@
           else if self ? lastModified && self.lastModified != null then builtins.toString self.lastModified
           else "dev";
 
-        dockerInitBin = pkgs.writeShellScriptBin "docker-init" ''
+        dockerInitBin = pkgs.writeShellScriptBin "docker-init.sh" ''
           #!/usr/bin/env bash
           set -euo pipefail
 
@@ -105,12 +105,13 @@
           exit 1
         '';
 
-        dockerInitShare = pkgs.runCommand "docker-init-share" {} ''
-          install -Dm0755 ${dockerInitBin}/bin/docker-init \
-            $out/usr/local/share/docker-init.sh
-        '';
+        dockerInitShare = pkgs.buildEnv {
+          name = "docker-init-share";
+          paths = [ dockerInitBin ];
+          pathsToLink = [ "/usr/local/share" ];
+        };
 
-        sshInitBin = pkgs.writeShellScriptBin "ssh-init" ''
+        sshInitBin = pkgs.writeShellScriptBin "ssh-init.sh" ''
           #!/usr/bin/env bash
           set -euo pipefail
           PATH=${pkgs.lib.makeBinPath [ pkgs.procps pkgs.coreutils pkgs.openssh pkgs.util-linux pkgs.curl ]}:$PATH
@@ -219,7 +220,7 @@
           pathsToLink = [ "/usr/local/share" ];
         };
 
-        initBin = pkgs.writeShellScriptBin "init" ''
+        initBin = pkgs.writeShellScriptBin "init.sh" ''
           #!/usr/bin/env bash
           set -euo pipefail
           trap 'echo "[init] error on line $LINENO" >&2' ERR
@@ -324,10 +325,11 @@ EOF
           fi
         '';
 
-        initShare = pkgs.runCommand "init-share" {} ''
-          install -Dm0755 ${initBin}/bin/init \
-            $out/usr/local/share/init.sh
-        '';
+        initShare = pkgs.buildEnv {
+          name = "init-share";
+          paths = [ initBin ];
+          pathsToLink = [ "/usr/local/share" ];
+        };
 
         fakeNssExtended = pkgs.dockerTools.fakeNss.override {
           extraPasswdLines = [
