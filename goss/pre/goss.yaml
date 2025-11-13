@@ -1,0 +1,42 @@
+file:
+  /home:
+    exists: true
+  /workspaces:
+    exists: true
+  /usr/local/share/init.sh:
+    exists: true
+    filetype: file
+    mode: "0755"
+    owner: root
+    group: root
+  /usr/local/share/ssh-init.sh:
+    exists: true
+    filetype: file
+    mode: "0755"
+    owner: root
+    group: root
+  /bin/doas:
+    exists: true
+    filetype: file
+    mode: "4755"
+    owner: root
+    group: root
+  /bin/sudo:
+    exists: true
+    filetype: symlink
+    linked-to: doas
+
+user:
+  vscode:
+    exists: true
+    uid: 1000
+    gid: 1000
+
+group:
+  sudo:
+    exists: true
+
+command:
+  sudo-works:
+    exec: bash -lc "sudo -n true"
+    exit-status: 0

@@ -9,7 +9,7 @@ on:
     branches: [ master ]
     paths:
       - .github/workflows/smoke.yml
-      - goss.yaml
+      - goss/**
 
 jobs:
   smoke:
@@ -31,8 +31,14 @@ jobs:
           curl -L https://github.com/goss-org/goss/releases/download/${GOSS_VERSION}/goss-linux-amd64 | sudo tee /usr/local/bin/goss >/dev/null
           curl -L https://github.com/goss-org/goss/releases/download/${GOSS_VERSION}/dgoss | sudo tee /usr/local/bin/dgoss >/dev/null
           sudo chmod +x /usr/local/bin/goss /usr/local/bin/dgoss
-      - name: Run dgoss smoke tests
+      - name: Run dgoss smoke tests (pre-init)
         env:
-          GOSS_FILES_PATH: ${{ github.workspace }}
+          GOSS_FILES_PATH: ${{ github.workspace }}/goss/pre
           DGOSS_RUN_OPTS: "--entrypoint /bin/bash --env GITHUB_USER=c0decafe"
         run: dgoss run ghcr.io/c0decafe/homebase:latest -lc "sleep infinity"
+
+      - name: Run dgoss smoke tests (post-init)
+        env:
+          GOSS_FILES_PATH: ${{ github.workspace }}/goss/post
+          DGOSS_RUN_OPTS: "--entrypoint /bin/bash --env GITHUB_USER=c0decafe"
+        run: dgoss run ghcr.io/c0decafe/homebase:latest -lc "sudo /usr/local/share/init.sh && sleep infinity"

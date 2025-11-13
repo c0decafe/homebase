@@ -43,16 +43,3 @@ user:
 group:
   sudo:
     exists: true
-
-command:
-  sudo-works:
-    exec: bash -lc "sudo -n true"
-    exit-status: 0
-  init-and-sshd:
-    exec: bash -lc "sudo /usr/local/share/init.sh && sudo ss -lnpt | grep ':2222'"
-    exit-status: 0
-    timeout: 30000
-# Temporarily disabled until ssh-init reinstates GitHub authorized_keys download.
-#  ssh-init-authorized-keys:
-#    exec: bash -lc "test -f /home/.ssh/authorized_keys"
-#    exit-status: 0
