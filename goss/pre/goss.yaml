@@ -15,6 +15,15 @@ file:
     exists: true
     filetype: symlink
     linked-to: doas
+  /bin/nvim:
+    exists: true
+    filetype: file
+  /bin/docker:
+    exists: true
+    filetype: file
+  /usr/local/share/desktop-init.sh:
+    exists: true
+    filetype: file
 
 user:
   vscode:
@@ -35,4 +44,10 @@ command:
     exit-status: 0
   sudo-works:
     exec: bash -lc "sudo -n true"
+    exit-status: 0
+  nvim-version:
+    exec: bash -lc "nvim --version >/dev/null"
+    exit-status: 0
+  docker-version:
+    exec: bash -lc "docker --version >/dev/null"
     exit-status: 0

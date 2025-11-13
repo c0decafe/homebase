@@ -642,9 +642,9 @@ EOF
             compatLayer
             baseLayer
             gossLayer
-            # editorLayer
-            # containerLayer
-            # desktopLayer
+            editorLayer
+            containerLayer
+            desktopLayer
             sshLayer
             nixConfigLayer
           ];
