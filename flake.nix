@@ -220,6 +220,7 @@
         initBin = pkgs.writeShellScriptBin "init" ''
           #!/usr/bin/env bash
           set -euo pipefail
+          trap 'echo "[init] error on line $LINENO" >&2' ERR
 
           REF_HOME="/usr/local/share/homebase/home"
           TARGET_HOME="/home"
