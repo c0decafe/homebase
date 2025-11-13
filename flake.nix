@@ -21,6 +21,13 @@
 
         buildImage = n2c.nix2container.buildImage;
         buildLayer = n2c.nix2container.buildLayer;
+        mkShareScript = { drv, binName, targetName ? binName }:
+          pkgs.linkFarm "homebase-${targetName}-share" [
+            {
+              name = "usr/local/share/${targetName}";
+              path = "${drv}/bin/${binName}";
+            }
+          ];
 
         # ---- Base tools (lean) ----
         runtimeTools = with pkgs; [
@@ -105,10 +112,9 @@
           exit 1
         '';
 
-        dockerInitShare = pkgs.buildEnv {
-          name = "docker-init-share";
-          paths = [ dockerInitBin ];
-          pathsToLink = [ "/usr/local/share" ];
+        dockerInitShare = mkShareScript {
+          drv = dockerInitBin;
+          binName = "docker-init.sh";
         };
 
         sshInitBin = pkgs.writeShellScriptBin "ssh-init.sh" ''
@@ -214,10 +220,9 @@
           fail "sshd did not report ready in time"
         '';
 
-        sshInitShare = pkgs.buildEnv {
-          name = "ssh-init-share";
-          paths = [ sshInitBin ];
-          pathsToLink = [ "/usr/local/share" ];
+        sshInitShare = mkShareScript {
+          drv = sshInitBin;
+          binName = "ssh-init.sh";
         };
 
         initBin = pkgs.writeShellScriptBin "init.sh" ''
@@ -325,10 +330,9 @@ EOF
           fi
         '';
 
-        initShare = pkgs.buildEnv {
-          name = "init-share";
-          paths = [ initBin ];
-          pathsToLink = [ "/usr/local/share" ];
+        initShare = mkShareScript {
+          drv = initBin;
+          binName = "init.sh";
         };
 
         fakeNssExtended = pkgs.dockerTools.fakeNss.override {
