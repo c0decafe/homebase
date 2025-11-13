@@ -335,6 +335,27 @@
           ];
         };
 
+        gossPreFile = pkgs.writeText "homebase-goss-pre.yaml" (builtins.readFile ./goss/pre/goss.yaml);
+        gossPostFile = pkgs.writeText "homebase-goss-post.yaml" (builtins.readFile ./goss/post/goss.yaml);
+
+        gossPreWrapper = pkgs.writeShellScriptBin "goss-pre" ''
+          exec ${pkgs.goss}/bin/goss -g ${gossPreFile} "$@"
+        '';
+
+        gossPostWrapper = pkgs.writeShellScriptBin "goss-post" ''
+          exec ${pkgs.goss}/bin/goss -g ${gossPostFile} "$@"
+        '';
+
+        gossTools = pkgs.buildEnv {
+          name = "homebase-goss-tools";
+          paths = [ gossPreWrapper gossPostWrapper ];
+          pathsToLink = [ "/bin" ];
+        };
+
+        gossLayer = buildLayer {
+          copyToRoot = [ pkgs.goss gossTools ];
+        };
+
         dockerCompatPaths = [
           pkgs.dockerTools.usrBinEnv
           pkgs.dockerTools.binSh

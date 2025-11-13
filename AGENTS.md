@@ -33,3 +33,6 @@
 - Never embed real secrets in `flake.nix`; reference `${{ secrets.* }}` in workflows instead.
 - Keep `/run/sshd` perms aligned with the fake NSS user (UID/GID 75) and avoid shipping PAM when `doas` is static.
 - When updating GHCR digests, temporarily set `sha256 = pkgs.lib.fakeSha256;` to capture the new hash from CI.
+
+## Reference Docs
+- `docs/gossfile.md` – local copy of the upstream gossfile spec from https://github.com/goss-org/goss; keep it in sync when the source doc changes.

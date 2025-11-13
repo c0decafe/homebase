@@ -31,14 +31,27 @@ jobs:
           curl -L https://github.com/goss-org/goss/releases/download/${GOSS_VERSION}/goss-linux-amd64 | sudo tee /usr/local/bin/goss >/dev/null
           curl -L https://github.com/goss-org/goss/releases/download/${GOSS_VERSION}/dgoss | sudo tee /usr/local/bin/dgoss >/dev/null
           sudo chmod +x /usr/local/bin/goss /usr/local/bin/dgoss
-      - name: Run dgoss smoke tests (pre-init)
-        env:
-          GOSS_FILES_PATH: ${{ github.workspace }}/goss/pre
-          DGOSS_RUN_OPTS: "--entrypoint /bin/bash --env GITHUB_USER=c0decafe"
-        run: dgoss run ghcr.io/c0decafe/homebase:latest -lc "sleep infinity"
+      - name: Launch smoke container
+        run: |
+          docker run -d --name homebase-smoke ghcr.io/c0decafe/homebase:latest bash -lc "sleep infinity"
 
-      - name: Run dgoss smoke tests (post-init)
-        env:
-          GOSS_FILES_PATH: ${{ github.workspace }}/goss/post
-          DGOSS_RUN_OPTS: "--entrypoint /bin/bash --env GITHUB_USER=c0decafe"
-        run: dgoss run ghcr.io/c0decafe/homebase:latest -lc "sudo /usr/local/share/init.sh && sleep infinity"
+      - name: Install goss inside container
+        run: |
+          docker exec homebase-smoke bash -lc "goss-pre --version >/dev/null"
+
+      - name: Run pre-init goss suite
+        run: |
+          docker exec homebase-smoke goss-pre validate
+
+      - name: Run init script
+        run: |
+          docker exec homebase-smoke sudo /usr/local/share/init.sh
+
+      - name: Run post-init goss suite
+        run: |
+          docker exec homebase-smoke goss-post validate
+
+      - name: Cleanup smoke container
+        if: always()
+        run: |
+          docker rm -f homebase-smoke >/dev/null 2>&1 || true
