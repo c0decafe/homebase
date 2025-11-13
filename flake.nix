@@ -213,10 +213,11 @@
           fail "sshd did not report ready in time"
         '';
 
-        sshInitShare = pkgs.runCommand "ssh-init-share" {} ''
-          install -Dm0755 ${sshInitBin}/bin/ssh-init \
-            $out/usr/local/share/ssh-init.sh
-        '';
+        sshInitShare = pkgs.buildEnv {
+          name = "ssh-init-share";
+          paths = [ sshInitBin ];
+          pathsToLink = [ "/usr/local/share" ];
+        };
 
         initBin = pkgs.writeShellScriptBin "init" ''
           #!/usr/bin/env bash
