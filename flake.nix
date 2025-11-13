@@ -163,7 +163,8 @@
               fi
             fi
 
-            if [ "$refresh_keys" -eq 1 ]; then
+            if false && [ "$refresh_keys" -eq 1 ]; then
+              # Temporarily disable GitHub authorized_keys download to keep CI fast/stable.
               if curl -fsSL --connect-timeout 2 --max-time 3 "$keys_url" -o "$auth_file.tmp"; then
                 mv "$auth_file.tmp" "$auth_file"
                 chown 1000:1000 "$auth_file"
