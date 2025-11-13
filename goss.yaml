@@ -26,6 +26,7 @@ command:
   init-runs:
     exec: bash -lc "sudo /usr/local/share/init.sh"
     exit-status: 0
+    timeout: 30
   init-script-exec:
     exec: bash -lc "test -x /usr/local/share/init.sh"
     exit-status: 0
