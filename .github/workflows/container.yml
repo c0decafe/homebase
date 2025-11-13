@@ -13,7 +13,28 @@ permissions:
   packages: write
 
 jobs:
+  eval-flake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-25.05-small
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+
+      - name: Evaluate flake targets
+        run: |
+          set -euo pipefail
+          for attr in homebase-sudo homebase; do
+            echo "Evaluating $attr"
+            nix eval --no-write-lock-file ".#${attr}.drvPath" >/dev/null
+          done
+
   sudo-base:
+    needs: eval-flake
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,9 +51,6 @@ jobs:
         with:
           name: c0decafe
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-
-      - name: Eval sudo base flake
-        run: nix eval --no-write-lock-file .#homebase-sudo.drvPath
 
       - name: Build sudo base image stream
         run: nix build -L --no-write-lock-file .#homebase-sudo
