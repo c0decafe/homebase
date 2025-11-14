@@ -643,7 +643,7 @@ EOF
             gossLayer
             editorLayer
             containerLayer
-            desktopLayer
+            # desktopLayer
             sshLayer
             nixConfigLayer
           ];

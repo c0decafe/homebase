@@ -21,9 +21,6 @@ file:
   /bin/docker:
     exists: true
     filetype: file
-  /usr/local/share/desktop-init.sh:
-    exists: true
-    filetype: file
 
 user:
   vscode:
