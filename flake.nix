@@ -25,17 +25,24 @@
         runtimeTools = with pkgs; [
           bashInteractive coreutils findutils gnugrep gawk
           curl wget jq tree which gnused gnutar gzip xz
+        ];
+
+        userTools = with pkgs; [
           nixVersions.stable fish tmux iproute2
         ];
 
         editorTools = with pkgs; [
           git neovim ripgrep fd direnv nix-direnv codex pandoc
-          gitAndTools.git-lfs
+          gitAndTools.git-lfs nixd nodejs_22
+          nodePackages_latest.stylelint nodePackages_latest.prettier
         ];
 
-        containerTools = with pkgs; [
-          docker docker-compose containerd runc skopeo rsync rclone
-          pigz iptables
+        containerCoreTools = with pkgs; [
+          docker containerd runc iptables pigz
+        ];
+
+        containerExtraTools = with pkgs; [
+          docker-compose skopeo rsync rclone
         ];
 
         desktopTools = with pkgs; [
@@ -51,7 +58,7 @@
           #!/usr/bin/env bash
           set -euo pipefail
 
-          REF_HOME="${homeReference}/home"
+          REF_ROOT="${referenceRoot}"
           TARGET_HOME="/home"
           TARGET_WORKSPACES="/workspaces"
           USER_UID=1000
@@ -75,16 +82,36 @@
           ensure_dir "$TARGET_HOME" 0755
           ensure_dir "$TARGET_WORKSPACES" 0755
 
-          if [ -d "$REF_HOME" ]; then
-            log "installing reference home files"
-            ${pkgs.rsync}/bin/rsync -a \
-              --ignore-existing \
-              --chown="$USER_UID:$USER_GID" \
-              --chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r \
-              "$REF_HOME"/ "$TARGET_HOME"/
-          else
-            log "reference home files not found at $REF_HOME"
-          fi
+          install_reference_homes() {
+            local root="$1"
+            if [ ! -d "$root" ]; then
+              log "reference home files not found at $root"
+              return
+            fi
+
+            shopt -s nullglob
+            local refs=("$root"/*)
+            shopt -u nullglob
+
+            if [ "''${#refs[@]}" -eq 0 ]; then
+              log "no reference home overlays present under $root"
+              return
+            fi
+
+            for ref in "''${refs[@]}"; do
+              if [ ! -d "$ref/home" ]; then
+                continue
+              fi
+              log "installing reference home files from $ref"
+              ${pkgs.rsync}/bin/rsync -a \
+                --ignore-existing \
+                --chown="$USER_UID:$USER_GID" \
+                --chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r \
+                "$ref/home"/ "$TARGET_HOME"/
+            done
+          }
+
+          install_reference_homes "$REF_ROOT"
 
           if [ -d "$TARGET_HOME/.ssh" ]; then
             chmod 0700 "$TARGET_HOME/.ssh" || true
@@ -308,7 +335,7 @@
         '';
 
         sshLayer = buildLayer {
-          copyToRoot = [ sshRuntime sshConfig ];
+          copyToRoot = [ sshRuntime sshConfig sshServiceRun ];
           perms = [
             { path = sshConfig; regex = "^/run/sshd$"; uid = 75; gid = 75; dirMode = "0750"; }
           ];
@@ -318,11 +345,11 @@
         gossPostFile = pkgs.writeText "homebase-goss-post.yaml" (builtins.readFile ./goss/post/goss.yaml);
 
         gossPreWrapper = pkgs.writeShellScriptBin "goss-pre" ''
-          exec ${pkgs.goss}/bin/goss -g ${gossPreFile} "$@"
+          exec /bin/goss -g ${gossPreFile} "$@"
         '';
 
         gossPostWrapper = pkgs.writeShellScriptBin "goss-post" ''
-          exec ${pkgs.goss}/bin/goss -g ${gossPostFile} "$@"
+          exec /bin/goss -g ${gossPostFile} "$@"
         '';
 
         gossTools = pkgs.buildEnv {
@@ -331,8 +358,16 @@
           pathsToLink = [ "/bin" ];
         };
 
+        gossRuntimeLayer = buildLayer {
+          copyToRoot = pkgs.buildEnv {
+            name = "homebase-goss-runtime";
+            paths = [ pkgs.goss ];
+            pathsToLink = [ "/bin" ];
+          };
+        };
+
         gossLayer = buildLayer {
-          copyToRoot = [ pkgs.goss gossTools ];
+          copyToRoot = [ gossTools ];
         };
 
         dockerCompatPaths = [
@@ -344,31 +379,33 @@
 
         # VS Code Machine settings for vscode (absolute store paths to nvim/direnv)
         vscodeMachineSettings = pkgs.writeText "vscode-machine-settings.json" (builtins.toJSON {
-          "direnv.path.executable" = "${pkgs.direnv}/bin/direnv";
-          "vscode-neovim.neovimExecutablePaths.linux" = "${pkgs.neovim}/bin/nvim";
+          "direnv.path.executable" = "/bin/direnv";
+          "vscode-neovim.neovimExecutablePaths.linux" = "/bin/nvim";
           "nix.enableLanguageServer" = true;
-          "nix.serverPath" = "${pkgs.nixd}/bin/nixd";
-          "eslint.runtime" = "${pkgs.nodejs_22}/bin/node";
-          "stylelint.stylelintPath" = "${pkgs.nodePackages_latest.stylelint}/bin/stylelint";
-          "prettier.prettierPath" = "${pkgs.nodePackages_latest.prettier}/bin/prettier";
+          "nix.serverPath" = "/bin/nixd";
+          "eslint.runtime" = "/bin/node";
+          "stylelint.stylelintPath" = "/bin/stylelint";
+          "prettier.prettierPath" = "/bin/prettier";
         });
 
-        homeReference = pkgs.runCommand "homebase-home-reference" {} ''
-          mkdir -p $out/home/.config/fish/conf.d
-          mkdir -p $out/home/.ssh
-          mkdir -p $out/home/.vscode-server/data/Machine
+        referenceRoot = "/etc/homebase/home-reference.d";
+
+        baseHomeReference = pkgs.runCommand "homebase-home-reference-base" {} ''
+          base=$out${referenceRoot}/00-base/home
+          mkdir -p "$base/.config/fish/conf.d"
+          mkdir -p "$base/.ssh"
 
           install -Dm0644 ${pkgs.writeText "vscode-bashrc" ''
 if command -v direnv >/dev/null 2>&1; then
   eval "$(direnv hook bash)"
 fi
-          ''} $out/home/.bashrc
+          ''} "$base/.bashrc"
 
           install -Dm0644 ${pkgs.writeText "vscode-zshrc" ''
 if command -v direnv >/dev/null 2>&1; then
   eval "$(direnv hook zsh)"
 fi
-          ''} $out/home/.zshrc
+          ''} "$base/.zshrc"
 
           install -Dm0644 ${pkgs.writeText "nix.fish" ''
 if test -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
@@ -377,24 +414,23 @@ end
 if type -q direnv
   eval (direnv hook fish)
 end
-          ''} $out/home/.config/fish/conf.d/nix.fish
+          ''} "$base/.config/fish/conf.d/nix.fish"
 
           install -Dm0644 ${pkgs.writeText "ssh-config" ''
 Host *
   ServerAliveInterval 120
   ServerAliveCountMax 3
-          ''} $out/home/.ssh/config
-
-          install -Dm0644 ${vscodeMachineSettings} \
-            $out/home/.vscode-server/data/Machine/settings.json
+          ''} "$base/.ssh/config"
         '';
 
-        systemFiles = pkgs.runCommand "homebase-system-files" {} ''
-          mkdir -p $out/etc
-          mkdir -p $out/lib
-          mkdir -p $out/usr/sbin
+        editorHomeReference = pkgs.runCommand "homebase-home-reference-editor" {} ''
+          editor=$out${referenceRoot}/10-editor/home
+          mkdir -p "$editor/.vscode-server/data/Machine"
+          install -Dm0644 ${vscodeMachineSettings} \
+            "$editor/.vscode-server/data/Machine/settings.json"
+        '';
 
-          cat > $out/etc/os-release <<EOF
+        osReleaseFile = pkgs.writeText "homebase-os-release" ''
 NAME="Homebase (Nix)"
 PRETTY_NAME="Homebase (Nix) Codespace Image"
 ID=homebase
@@ -405,16 +441,30 @@ BUG_REPORT_URL="https://github.com/c0decafe/homebase/issues"
 VERSION_ID="25.05"
 VERSION="nixos-25.05-small"
 BUILD_ID="${buildId}"
-EOF
+'';
+
+        osReleaseTree = pkgs.linkFarm "homebase-os-release-tree" [
+          { name = "etc/os-release"; path = osReleaseFile; }
+        ];
+
+        emptyLibTree = pkgs.runCommand "homebase-lib-tree" {} ''
+          mkdir -p $out/lib
         '';
+
+        emptyUsrSbinTree = pkgs.runCommand "homebase-usr-sbin-tree" {} ''
+          mkdir -p $out/usr/sbin
+        '';
+
+        systemFiles = pkgs.buildEnv {
+          name = "homebase-system-files";
+          paths = [ osReleaseTree emptyLibTree emptyUsrSbinTree ];
+        };
 
         baseTools = pkgs.buildEnv {
           name = "homebase-base-tools";
           paths = runtimeTools ++ [
             homebaseSetup
             homebaseEntrypoint
-            sshServiceRun
-            dockerServiceRun
           ];
           pathsToLink = [ "/bin" "/share" "/usr" "/etc" ];
         };
@@ -430,21 +480,40 @@ EOF
 
         # ---- Layers ----
         baseLayer = buildLayer {
-          copyToRoot = [ baseTools baseRuntime systemFiles ];
+          copyToRoot = [ baseTools baseRuntime systemFiles baseHomeReference ];
+        };
+
+        userLayer = buildLayer {
+          copyToRoot = pkgs.buildEnv {
+            name = "homebase-user-tools";
+            paths = userTools;
+            pathsToLink = [ "/bin" "/share" "/etc" ];
+          };
         };
 
         editorLayer = buildLayer {
-          copyToRoot = pkgs.buildEnv {
-            name = "homebase-editor";
-            paths = editorTools;
-            pathsToLink = [ "/bin" "/share" ];
-          };
+          copyToRoot = [
+            (pkgs.buildEnv {
+              name = "homebase-editor";
+              paths = editorTools;
+              pathsToLink = [ "/bin" "/share" ];
+            })
+            editorHomeReference
+          ];
         };
 
         containerLayer = buildLayer {
           copyToRoot = pkgs.buildEnv {
             name = "homebase-container";
-            paths = containerTools;
+            paths = containerCoreTools ++ [ dockerServiceRun ];
+            pathsToLink = [ "/bin" "/share" "/usr" ];
+          };
+        };
+
+        containerExtrasLayer = buildLayer {
+          copyToRoot = pkgs.buildEnv {
+            name = "homebase-container-extras";
+            paths = containerExtraTools;
             pathsToLink = [ "/bin" "/share" "/usr" ];
           };
         };
@@ -564,9 +633,12 @@ EOF
           layers = [
             compatLayer
             baseLayer
+            userLayer
+            gossRuntimeLayer
             gossLayer
             editorLayer
             containerLayer
+            containerExtrasLayer
             # desktopLayer
             sshLayer
             nixConfigLayer
