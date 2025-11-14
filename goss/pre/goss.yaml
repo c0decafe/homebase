@@ -17,10 +17,10 @@ file:
     linked-to: doas
   /bin/nvim:
     exists: true
-    filetype: file
+    filetype: symlink
   /bin/docker:
     exists: true
-    filetype: file
+    filetype: symlink
 
 user:
   vscode:
