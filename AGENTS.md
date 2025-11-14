@@ -22,7 +22,7 @@
 ## Testing Guidelines
 - After every change, double-check that the relevant tests cover the behavior and update them when needed.
 - Rely on `nix flake check` for structural/tests; add targeted scripts when changing ssh or docker init flows.
-- CI smoke test (`.github/workflows/smoke.yml`) relies on the runit entrypoint; keep ssh changes compatible.
+- CI smoke test (`.github/workflows/smoke.yml`) runs `goss-pre`, invokes `/bin/homebase-setup`, starts `/bin/homebase-ssh-service`, and finally executes `goss-post`; keep those helpers working under root.
 - When touching sshd or docker layers, manually run the docker smoke command above before pushing.
 
 ## Commit & Pull Request Guidelines
@@ -31,6 +31,7 @@
 - Screenshots are unnecessary; paste command outputs or GHCR links instead.
 - Ensure PRs pass both `container` and `ssh-smoke-test` workflows; re-run if rate-limited after adding `access-tokens` config.
 - The Codex agent may run any git command (push only on request) and other safe tooling like `gh` or `curl` when needed.
+- Before pushing, always inspect `git diff --staged`; if follow-up tweaks are needed, amend them into the existing commit before retrying the push.
 
 ## Security & Configuration Tips
 - Never embed real secrets in `flake.nix`; reference `${{ secrets.* }}` in workflows instead.

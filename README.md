@@ -89,7 +89,7 @@ Defined in `flake.nix`:
   wrangler, network debuggers, etc.
 - **Base layers** - built entirely from Nix (no Debian base image) with a compatibility layer that injects `/etc/passwd`, `/bin/sh`, and CA certificates so the environment stands on its own.
 - **Docker runtime** - Docker Engine, containerd, runc, and friends are provided via Nix and started automatically when the container boots.
-- **Home/user layer** - ensures the `vscode` user exists with sudo privileges. The runit-based entrypoint (`/bin/homebase-entrypoint`) invokes `/bin/homebase-setup` on boot to copy reference files into `/home`/`/workspaces`, so no manual init call is required.
+- **Home/user layer** - ensures the `vscode` user exists with sudo privileges. The entrypoint (`/bin/homebase-entrypoint`) invokes `/bin/homebase-setup` on boot and then launches the bundled SSH/Docker helpers, so no manual init call is required.
 - **VS Code layer** - drops the machine settings JSON under
   `/home/.vscode-server/data/Machine/settings.json` with correct store paths for direnv and
   neovim.

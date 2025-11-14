@@ -1,16 +1,16 @@
 file:
   /bin/homebase-entrypoint:
     exists: true
-    filetype: file
+    filetype: symlink
   /bin/homebase-setup:
     exists: true
-    filetype: file
-  /etc/service/sshd/run:
+    filetype: symlink
+  /bin/homebase-ssh-service:
     exists: true
-    filetype: file
-  /etc/service/docker/run:
+    filetype: symlink
+  /bin/homebase-docker-service:
     exists: true
-    filetype: file
+    filetype: symlink
   /bin/doas:
     exists: true
     filetype: file
@@ -44,6 +44,12 @@ command:
     exit-status: 0
   setup-is-executable:
     exec: bash -lc "test -x /bin/homebase-setup"
+    exit-status: 0
+  ssh-service-is-executable:
+    exec: bash -lc "test -x /bin/homebase-ssh-service"
+    exit-status: 0
+  docker-service-is-executable:
+    exec: bash -lc "test -x /bin/homebase-docker-service"
     exit-status: 0
   sudo-works:
     exec: bash -lc "sudo -n true"

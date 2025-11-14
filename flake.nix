@@ -25,7 +25,7 @@
         runtimeTools = with pkgs; [
           bashInteractive coreutils findutils gnugrep gawk
           curl wget jq tree which gnused gnutar gzip xz
-          nixVersions.stable fish tmux iproute2 runit
+          nixVersions.stable fish tmux iproute2
         ];
 
         editorTools = with pkgs; [
@@ -51,7 +51,7 @@
           #!/usr/bin/env bash
           set -euo pipefail
 
-          REF_HOME="/etc/homebase/home"
+          REF_HOME="${homeReference}/home"
           TARGET_HOME="/home"
           TARGET_WORKSPACES="/workspaces"
           USER_UID=1000
@@ -77,7 +77,11 @@
 
           if [ -d "$REF_HOME" ]; then
             log "installing reference home files"
-            cp -an "$REF_HOME/." "$TARGET_HOME"
+            ${pkgs.rsync}/bin/rsync -a \
+              --ignore-existing \
+              --chown="$USER_UID:$USER_GID" \
+              --chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r \
+              "$REF_HOME"/ "$TARGET_HOME"/
           else
             log "reference home files not found at $REF_HOME"
           fi
@@ -93,7 +97,7 @@
           chown "$USER_UID:$USER_GID" "$TARGET_WORKSPACES" || true
         '';
 
-        sshServiceRun = pkgs.writeShellScript "homebase-ssh-service" ''
+        sshServiceRun = pkgs.writeShellScriptBin "homebase-ssh-service" ''
           #!/usr/bin/env bash
           set -euo pipefail
           PATH=${pkgs.lib.makeBinPath [ pkgs.procps pkgs.coreutils pkgs.openssh pkgs.util-linux pkgs.curl ]}:$PATH
@@ -161,14 +165,14 @@
           exec ${pkgs.openssh}/bin/sshd -f /etc/ssh/sshd_config -D
         '';
 
-        dockerServiceRun = pkgs.writeShellScript "homebase-docker-service" ''
+        dockerServiceRun = pkgs.writeShellScriptBin "homebase-docker-service" ''
           #!/usr/bin/env bash
           set -euo pipefail
           PATH=${pkgs.lib.makeBinPath [ pkgs.docker pkgs.containerd pkgs.runc pkgs.iptables pkgs.pigz pkgs.util-linux pkgs.procps pkgs.coreutils ]}:$PATH
 
           if [ "''${HOMEBASE_ENABLE_DOCKER:-1}" != "1" ]; then
             echo "[homebase-docker] disabled via HOMEBASE_ENABLE_DOCKER" >&2
-            exec sleep infinity
+            exit 0
           fi
 
           SOCKET=/var/run/docker.sock
@@ -191,7 +195,14 @@
           ${pkgs.containerd}/bin/containerd >/tmp/containerd.log 2>&1 &
           containerd_pid=$!
 
+          dockerd_pid=""
+
           cleanup() {
+            if [ -n "''${dockerd_pid:-}" ]; then
+              kill "$dockerd_pid" >/dev/null 2>&1 || true
+              wait "$dockerd_pid" >/dev/null 2>&1 || true
+              dockerd_pid=""
+            fi
             if [ -n "''${containerd_pid:-}" ]; then
               kill "$containerd_pid" >/dev/null 2>&1 || true
               wait "$containerd_pid" >/dev/null 2>&1 || true
@@ -201,12 +212,10 @@
 
           trap cleanup EXIT INT TERM
 
-          exec ${pkgs.docker}/bin/dockerd --host=unix://$SOCKET
-        '';
+          ${pkgs.docker}/bin/dockerd --host=unix://$SOCKET >/tmp/dockerd.log 2>&1 &
+          dockerd_pid=$!
 
-        runitServices = pkgs.runCommand "homebase-runit-services" {} ''
-          install -Dm0755 ${sshServiceRun} $out/etc/service/sshd/run
-          install -Dm0755 ${dockerServiceRun} $out/etc/service/docker/run
+          wait "$dockerd_pid"
         '';
 
         homebaseEntrypoint = pkgs.writeShellScriptBin "homebase-entrypoint" ''
@@ -214,18 +223,36 @@
           set -euo pipefail
 
           cmd=( "$@" )
+          if [ "''${#cmd[@]}" -gt 0 ]; then
+            exec "''${cmd[@]}"
+          fi
+
           if [ "''${#cmd[@]}" -eq 0 ]; then
             cmd=(/bin/bash -lc "sleep infinity")
-          elif [ "''${#cmd[@]}" -eq 2 ] && [ "''${cmd[0]}" = "/bin/bash" ] && [ "''${cmd[1]}" = "-lc" ]; then
-            cmd+=( "sleep infinity" )
           fi
 
           sudo /bin/homebase-setup
 
-          sudo ${pkgs.runit}/bin/runsvdir -P /etc/service &
-          runsvdir_pid=$!
+          mkdir -p /tmp/homebase
 
-          cleanup_done=0
+          ssh_pid=""
+          docker_pid=""
+
+          start_ssh() {
+            sudo /bin/homebase-ssh-service >/tmp/homebase/ssh.log 2>&1 &
+            ssh_pid=$!
+          }
+
+          start_docker() {
+            sudo /bin/homebase-docker-service >/tmp/homebase/docker.log 2>&1 &
+            docker_pid=$!
+          }
+
+          start_ssh
+          if [ "''${HOMEBASE_ENABLE_DOCKER:-1}" = "1" ]; then
+            start_docker
+          fi
+
           cmd_pid=""
 
           forward_signal() {
@@ -233,39 +260,30 @@
             if [ -n "$cmd_pid" ] && kill -0 "$cmd_pid" >/dev/null 2>&1; then
               kill -s "$sig" "$cmd_pid" >/dev/null 2>&1 || true
             fi
+            for pid in "''${ssh_pid}" "''${docker_pid}"; do
+              if [ -n "$pid" ] && kill -0 "$pid" >/dev/null 2>&1; then
+                sudo kill -s "$sig" "$pid" >/dev/null 2>&1 || true
+              fi
+            done
           }
 
           cleanup() {
-            if [ "$cleanup_done" -eq 1 ]; then
-              return
-            fi
-            cleanup_done=1
-
-            for svc in /etc/service/*; do
-              if [ -d "$svc" ]; then
-                sudo ${pkgs.runit}/bin/sv term "$svc" >/dev/null 2>&1 || true
-                sudo ${pkgs.runit}/bin/sv wait "$svc" >/dev/null 2>&1 || true
+            for pid in "''${ssh_pid}" "''${docker_pid}"; do
+              if [ -n "$pid" ] && kill -0 "$pid" >/dev/null 2>&1; then
+                sudo kill "$pid" >/dev/null 2>&1 || true
+                wait "$pid" >/dev/null 2>&1 || true
               fi
             done
-
-            if [ -n "$runsvdir_pid" ]; then
-              sudo kill "$runsvdir_pid" >/dev/null 2>&1 || true
-              wait "$runsvdir_pid" >/dev/null 2>&1 || true
-              runsvdir_pid=""
-            fi
           }
 
           trap 'forward_signal TERM' TERM
           trap 'forward_signal INT' INT
-          trap 'cleanup' EXIT
+          trap cleanup EXIT
 
           "''${cmd[@]}" &
           cmd_pid=$!
           wait "$cmd_pid"
-          status=$?
-
-          cleanup
-          exit "$status"
+          exit "$?"
         '';
 
         fakeNssExtended = pkgs.dockerTools.fakeNss.override {
@@ -395,11 +413,6 @@ Host *
             $out/home/.vscode-server/data/Machine/settings.json
         '';
 
-        homeReferenceShare = pkgs.runCommand "homebase-home-share" {} ''
-          mkdir -p $out/etc/homebase
-          cp -a ${homeReference}/home $out/etc/homebase/
-        '';
-
         systemFiles = pkgs.runCommand "homebase-system-files" {} ''
           mkdir -p $out/etc
           mkdir -p $out/lib
@@ -421,7 +434,12 @@ EOF
 
         baseTools = pkgs.buildEnv {
           name = "homebase-base-tools";
-          paths = runtimeTools ++ [ homeReferenceShare homebaseSetup homebaseEntrypoint runitServices ];
+          paths = runtimeTools ++ [
+            homebaseSetup
+            homebaseEntrypoint
+            sshServiceRun
+            dockerServiceRun
+          ];
           pathsToLink = [ "/bin" "/share" "/usr" "/etc" ];
         };
 

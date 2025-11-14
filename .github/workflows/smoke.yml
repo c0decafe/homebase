@@ -26,7 +26,12 @@ jobs:
         run: docker pull ghcr.io/c0decafe/homebase:latest
       - name: Launch smoke container
         run: |
-          docker run -d --name homebase-smoke ghcr.io/c0decafe/homebase:latest
+          docker run -d \
+            --name homebase-smoke \
+            --user root \
+            --entrypoint /bin/bash \
+            ghcr.io/c0decafe/homebase:latest \
+            -lc "sleep infinity"
 
       - name: Print image os-release
         run: |
@@ -38,7 +43,25 @@ jobs:
 
       - name: Run pre-init goss suite
         run: |
-          docker exec homebase-smoke goss-pre validate
+          docker exec -u vscode homebase-smoke goss-pre validate
+
+      - name: Run homebase setup
+        run: |
+          docker exec homebase-smoke /bin/homebase-setup
+
+      - name: Start SSH service
+        run: |
+          docker exec -d homebase-smoke /bin/homebase-ssh-service
+          docker exec homebase-smoke bash -lc '
+            for i in $(seq 1 30); do
+              if ss -lnpt | grep -q ":2222"; then
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "sshd failed to start" >&2
+            exit 1
+          '
 
       - name: Run post-init goss suite
         run: |
