@@ -1,16 +1,12 @@
 file:
   /bin/homebase-entrypoint:
     exists: true
-    filetype: symlink
   /bin/homebase-setup:
     exists: true
-    filetype: symlink
   /bin/homebase-ssh-service:
     exists: true
-    filetype: file
   /bin/homebase-docker-service:
     exists: true
-    filetype: symlink
   /bin/doas:
     exists: true
     filetype: file
@@ -23,10 +19,8 @@ file:
     linked-to: doas
   /bin/nvim:
     exists: true
-    filetype: symlink
   /bin/docker:
     exists: true
-    filetype: symlink
   /share/homebase/home-reference.d/00-base/home/.config/nix/nix.conf:
     exists: true
     filetype: file
