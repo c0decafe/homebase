@@ -248,20 +248,6 @@
             start_docker
           fi
 
-          cmd_pid=""
-
-          forward_signal() {
-            local sig="$1"
-            if [ -n "$cmd_pid" ] && kill -0 "$cmd_pid" >/dev/null 2>&1; then
-              kill -s "$sig" "$cmd_pid" >/dev/null 2>&1 || true
-            fi
-            for pid in "''${ssh_pid}" "''${docker_pid}"; do
-              if [ -n "$pid" ] && kill -0 "$pid" >/dev/null 2>&1; then
-                sudo kill -s "$sig" "$pid" >/dev/null 2>&1 || true
-              fi
-            done
-          }
-
           cleanup() {
             for pid in "''${ssh_pid}" "''${docker_pid}"; do
               if [ -n "$pid" ] && kill -0 "$pid" >/dev/null 2>&1; then
@@ -271,14 +257,9 @@
             done
           }
 
-          trap 'forward_signal TERM' TERM
-          trap 'forward_signal INT' INT
           trap cleanup EXIT
 
-          "''${cmd[@]}" &
-          cmd_pid=$!
-          wait "$cmd_pid"
-          exit "$?"
+          "''${cmd[@]}"
         '';
 
         fakeNssExtended = pkgs.dockerTools.fakeNss.override {
