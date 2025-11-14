@@ -2,10 +2,6 @@ name: update-flake-lock
 
 on:
   workflow_dispatch:
-    inputs:
-      update_message:
-        description: Optional commit suffix, e.g. refs
-        required: false
 
 permissions:
   contents: write
@@ -13,8 +9,10 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -25,13 +23,12 @@ jobs:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update flake lock
+      - name: Update flake.lock
         run: nix flake update
 
-      - name: Commit updated lock file
-        if: ${{ !cancelled() }}
+      - name: Commit and push lockfile
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: chore: update flake.lock
+          commit_message: "chore: update flake.lock"
           branch: ${{ github.ref_name }}
-          file_pattern: flake.lock
+          file_pattern: "flake.lock"
