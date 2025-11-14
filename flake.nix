@@ -332,6 +332,7 @@
         sshStateDirs = pkgs.runCommand "homebase-ssh-state" {} ''
           install -d -m 0750 $out/run/sshd
           mkdir -p $out/var/empty
+          mkdir -p $out/etc/ssh
         '';
 
         sshLayer = buildLayer {
