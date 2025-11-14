@@ -385,7 +385,7 @@
           "prettier.prettierPath" = "/bin/prettier";
         });
 
-        referenceRoot = "/etc/homebase/home-reference.d";
+        referenceRoot = "/share/homebase/home-reference.d";
 
         baseHomeReference = pkgs.runCommand "homebase-home-reference-base" {} ''
           base=$out${referenceRoot}/00-base/home
