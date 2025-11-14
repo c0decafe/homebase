@@ -7,7 +7,7 @@ file:
     filetype: symlink
   /bin/homebase-ssh-service:
     exists: true
-    filetype: symlink
+    filetype: file
   /bin/homebase-docker-service:
     exists: true
     filetype: symlink
