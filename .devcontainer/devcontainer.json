@@ -1,6 +1,6 @@
 {
   "name": "nix-homebase",
-  "image": "ghcr.io/c0decafe/homebase:latest",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "runArgs": [
     "--security-opt",
     "no-new-privileges=false",
@@ -10,7 +10,9 @@
     "/run:rw,noexec,nosuid,size=256m"
   ],
   "forwardPorts": [2222],
-  "features": {},
+  "features": {
+    "ghcr.io/devcontainers/features/sshd:1": {}
+  },
   "customizations": {
     "vscode": {
       "extensions": [
