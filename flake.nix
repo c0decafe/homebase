@@ -259,7 +259,7 @@
           trap 'forward_signal INT' INT
           trap 'cleanup' EXIT
 
-          "${cmd[@]}" &
+          "''${cmd[@]}" &
           cmd_pid=$!
           wait "$cmd_pid"
           status=$?
