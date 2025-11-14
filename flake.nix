@@ -60,7 +60,8 @@
           set -euo pipefail
 
           REF_ROOT="${referenceRoot}"
-          TARGET_HOME="/home"
+          TARGET_HOME_ROOT="/home"
+          TARGET_USER_HOME="$TARGET_HOME_ROOT/vscode"
           TARGET_WORKSPACES="/workspaces"
           USER_UID=1000
           USER_GID=1000
@@ -72,7 +73,7 @@
             exit 1
           fi
 
-          ensure_dir() {
+          ensure_user_dir() {
             local path="$1"
             local mode="$2"
             install -d -m "$mode" "$path"
@@ -80,11 +81,21 @@
             chown "$USER_UID:$USER_GID" "$path"
           }
 
-          ensure_dir "$TARGET_HOME" 0755
-          ensure_dir "$TARGET_WORKSPACES" 0755
+          ensure_root_dir() {
+            local path="$1"
+            local mode="$2"
+            install -d -m "$mode" "$path"
+            chmod "$mode" "$path"
+            chown 0:0 "$path"
+          }
+
+          ensure_root_dir "$TARGET_HOME_ROOT" 0755
+          ensure_user_dir "$TARGET_USER_HOME" 0755
+          ensure_user_dir "$TARGET_WORKSPACES" 0755
 
           install_reference_homes() {
             local root="$1"
+            local dest_root="$2"
             if [ ! -d "$root" ]; then
               log "reference home files not found at $root"
               return
@@ -103,25 +114,42 @@
               if [ ! -d "$ref/home" ]; then
                 continue
               fi
-              log "installing reference home files from $ref"
-              ${pkgs.rsync}/bin/rsync -a \
-                --ignore-existing \
-                --chown="$USER_UID:$USER_GID" \
-                --chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r \
-                "$ref/home"/ "$TARGET_HOME"/
+              shopt -s nullglob
+              local overlays=("$ref/home"/*)
+              shopt -u nullglob
+
+              if [ "''${#overlays[@]}" -eq 0 ]; then
+                continue
+              fi
+
+              for overlay in "''${overlays[@]}"; do
+                if [ ! -d "$overlay" ]; then
+                  continue
+                fi
+                local username
+                username=$(basename "$overlay")
+                local target="$dest_root/$username"
+                install -d -m 0755 "$target"
+                log "installing reference home files from $ref for $username"
+                ${pkgs.rsync}/bin/rsync -a \
+                  --ignore-existing \
+                  --chown="$USER_UID:$USER_GID" \
+                  --chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r \
+                  "$overlay"/ "$target"/
+              done
             done
           }
 
-          install_reference_homes "$REF_ROOT"
+          install_reference_homes "$REF_ROOT" "$TARGET_HOME_ROOT"
 
-          if [ -d "$TARGET_HOME/.ssh" ]; then
-            chmod 0700 "$TARGET_HOME/.ssh" || true
-            if compgen -G "$TARGET_HOME/.ssh/*" >/dev/null 2>&1; then
-              chmod 0600 "$TARGET_HOME/.ssh/"* || true
+          if [ -d "$TARGET_USER_HOME/.ssh" ]; then
+            chmod 0700 "$TARGET_USER_HOME/.ssh" || true
+            if compgen -G "$TARGET_USER_HOME/.ssh/*" >/dev/null 2>&1; then
+              chmod 0600 "$TARGET_USER_HOME/.ssh/"* || true
             fi
           fi
 
-          chown -R "$USER_UID:$USER_GID" "$TARGET_HOME" || log "warning: unable to chown $TARGET_HOME"
+          chown -R "$USER_UID:$USER_GID" "$TARGET_USER_HOME" || log "warning: unable to chown $TARGET_USER_HOME"
           chown "$USER_UID:$USER_GID" "$TARGET_WORKSPACES" || true
         '';
 
@@ -150,7 +178,7 @@
 
           github_user="''${GITHUB_USER:-}"
           force_keys="''${SSH_INIT_FORCE_KEYS:-}"
-          vscode_home="/home"
+          vscode_home="/home/vscode"
           if [ -d "$vscode_home" ]; then
             ssh_dir="$vscode_home/.ssh"
             auth_file="$ssh_dir/authorized_keys"
@@ -250,8 +278,19 @@
           #!/usr/bin/env bash
           set -euo pipefail
 
+          mode="normal"
+          if [ "''${HOMEBASE_ENTRYPOINT_MODE:-}" = "post-start" ]; then
+            mode="post-start"
+          fi
+          if [ "''${1:-}" = "--post-start" ]; then
+            mode="post-start"
+            shift
+          fi
+
           cmd=( "$@" )
-          if [ "''${#cmd[@]}" -eq 0 ]; then
+          if [ "$mode" = "post-start" ]; then
+            cmd=(/bin/true)
+          elif [ "''${#cmd[@]}" -eq 0 ]; then
             echo "[homebase-entrypoint] setup complete, entering idle loop" >&2
             cmd=(/bin/bash -lc "sleep infinity")
           fi
@@ -285,14 +324,23 @@
             done
           }
 
-          trap cleanup EXIT
+          if [ "$mode" = "normal" ]; then
+            trap cleanup EXIT
+          else
+            trap - EXIT
+          fi
+
+          if [ "$mode" = "post-start" ]; then
+            echo "[homebase-entrypoint] post-start initialization complete" >&2
+            exit 0
+          fi
 
           "''${cmd[@]}"
         '';
 
         fakeNssExtended = pkgs.dockerTools.fakeNss.override {
           extraPasswdLines = [
-            "vscode:x:1000:1000:VS Code:/home:${pkgs.fish}/bin/fish"
+            "vscode:x:1000:1000:VS Code:/home/vscode:${pkgs.fish}/bin/fish"
             "sshd:x:75:75:Privilege-separated SSH:/run/sshd:/usr/sbin/nologin"
           ];
           extraGroupLines = [
@@ -389,7 +437,7 @@
         referenceRoot = "/share/homebase/home-reference.d";
 
         baseHomeReference = pkgs.runCommand "homebase-home-reference-base" {} ''
-          base=$out${referenceRoot}/00-base/home
+          base=$out${referenceRoot}/00-base/home/vscode
           mkdir -p "$base/.config/fish/conf.d"
           mkdir -p "$base/.config/nix"
           mkdir -p "$base/.ssh"
@@ -429,7 +477,7 @@ trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDS
         '';
 
         editorHomeReference = pkgs.runCommand "homebase-home-reference-editor" {} ''
-          editor=$out${referenceRoot}/10-editor/home
+          editor=$out${referenceRoot}/10-editor/home/vscode
           mkdir -p "$editor/.vscode-server/data/Machine"
           install -Dm0644 ${vscodeMachineSettings} \
             "$editor/.vscode-server/data/Machine/settings.json"

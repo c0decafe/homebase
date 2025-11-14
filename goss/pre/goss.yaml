@@ -21,10 +21,10 @@ file:
     exists: true
   /bin/docker:
     exists: true
-  /share/homebase/home-reference.d/00-base/home/.config/nix/nix.conf:
+  /share/homebase/home-reference.d/00-base/home/vscode/.config/nix/nix.conf:
     exists: true
     filetype: file
-  /share/homebase/home-reference.d/10-editor/home/.vscode-server/data/Machine/settings.json:
+  /share/homebase/home-reference.d/10-editor/home/vscode/.vscode-server/data/Machine/settings.json:
     exists: true
     filetype: file
 
