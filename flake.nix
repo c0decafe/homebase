@@ -230,18 +230,16 @@
 
           sudo /bin/homebase-setup
 
-          mkdir -p /tmp/homebase
-
           ssh_pid=""
           docker_pid=""
 
           start_ssh() {
-            sudo /bin/homebase-ssh-service >/tmp/homebase/ssh.log 2>&1 &
+            sudo /bin/homebase-ssh-service &
             ssh_pid=$!
           }
 
           start_docker() {
-            sudo /bin/homebase-docker-service >/tmp/homebase/docker.log 2>&1 &
+            sudo /bin/homebase-docker-service &
             docker_pid=$!
           }
 
