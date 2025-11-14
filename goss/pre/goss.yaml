@@ -27,6 +27,12 @@ file:
   /bin/docker:
     exists: true
     filetype: symlink
+  /etc/homebase/home-reference.d/00-base/home/.config/nix/nix.conf:
+    exists: true
+    filetype: file
+  /etc/homebase/home-reference.d/10-editor/home/.vscode-server/data/Machine/settings.json:
+    exists: true
+    filetype: file
 
 user:
   vscode:

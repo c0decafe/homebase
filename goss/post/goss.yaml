@@ -17,6 +17,16 @@ file:
     mode: "0600"
     owner: vscode
     group: vscode
+  /home/.config/nix/nix.conf:
+    exists: true
+    filetype: file
+    owner: vscode
+    group: vscode
+  /home/.vscode-server/data/Machine/settings.json:
+    exists: true
+    filetype: file
+    owner: vscode
+    group: vscode
 
 command:
   sshd-listens-2222:
