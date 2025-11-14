@@ -443,24 +443,10 @@ VERSION_ID="25.05"
 VERSION="nixos-25.05-small"
 BUILD_ID="${buildId}"
 '';
-
-        osReleaseTree = pkgs.runCommand "homebase-os-release-tree" {} ''
-          mkdir -p $out/etc
+        systemFiles = pkgs.runCommand "homebase-system-files" {} ''
+          mkdir -p $out/etc $out/lib $out/usr/sbin
           cp ${osReleaseFile} $out/etc/os-release
         '';
-
-        emptyLibTree = pkgs.runCommand "homebase-lib-tree" {} ''
-          mkdir -p $out/lib
-        '';
-
-        emptyUsrSbinTree = pkgs.runCommand "homebase-usr-sbin-tree" {} ''
-          mkdir -p $out/usr/sbin
-        '';
-
-        systemFiles = pkgs.buildEnv {
-          name = "homebase-system-files";
-          paths = [ osReleaseTree emptyLibTree emptyUsrSbinTree ];
-        };
 
         baseTools = pkgs.buildEnv {
           name = "homebase-base-tools";
