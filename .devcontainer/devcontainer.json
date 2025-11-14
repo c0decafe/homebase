@@ -1,7 +1,6 @@
 {
   "name": "nix-homebase",
   "image": "ghcr.io/c0decafe/homebase:latest",
-  "overrideCommand": false,
   "runArgs": [
     "--security-opt",
     "no-new-privileges=false",
@@ -54,5 +53,6 @@
         "telemetry.telemetryLevel": "off"
       }
     }
-  }
+  },
+  "postStartCommand": "sudo /usr/local/share/ssh-init.sh || true"
 }
