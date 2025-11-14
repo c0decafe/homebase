@@ -190,7 +190,7 @@
             log "vscode home not found at $vscode_home"
           fi
 
-          exec ${pkgs.openssh}/bin/sshd -f /etc/ssh/sshd_config -D
+          exec ${pkgs.openssh}/bin/sshd -f ${sshConfigFile} -D
         '';
 
         dockerServiceRun = pkgs.writeShellScriptBin "homebase-docker-service" ''
@@ -309,37 +309,33 @@
           pathsToLink = [ "/bin" "/libexec" ];
         };
 
-        sshConfig = pkgs.runCommand "homebase-ssh-assets" {} ''
-          mkdir -p $out/run/sshd
-          mkdir -p $out/var/empty
-          mkdir -p $out/etc/ssh
+        sshConfigFile = pkgs.writeText "homebase-sshd_config" ''
+          Port 2222
+          ListenAddress 0.0.0.0
+          ListenAddress ::
+          HostKey /etc/ssh/ssh_host_rsa_key
+          HostKey /etc/ssh/ssh_host_ed25519_key
+          AuthorizedKeysFile .ssh/authorized_keys
+          PasswordAuthentication no
+          PermitRootLogin prohibit-password
+          ChallengeResponseAuthentication no
+          UsePAM no
+          AllowUsers vscode
+          AllowTcpForwarding yes
+          GatewayPorts no
+          X11Forwarding no
+          ClientAliveInterval 120
+          ClientAliveCountMax 3
+          Subsystem sftp ${pkgs.openssh}/libexec/sftp-server
+        '';
 
-          install -Dm0644 ${pkgs.writeText "sshd_config" ''
-            Port 2222
-            ListenAddress 0.0.0.0
-            ListenAddress ::
-            HostKey /etc/ssh/ssh_host_rsa_key
-            HostKey /etc/ssh/ssh_host_ed25519_key
-            AuthorizedKeysFile .ssh/authorized_keys
-            PasswordAuthentication no
-            PermitRootLogin prohibit-password
-            ChallengeResponseAuthentication no
-            UsePAM no
-            AllowUsers vscode
-            AllowTcpForwarding yes
-            GatewayPorts no
-            X11Forwarding no
-            ClientAliveInterval 120
-            ClientAliveCountMax 3
-            Subsystem sftp ${pkgs.openssh}/libexec/sftp-server
-          ''} $out/etc/ssh/sshd_config
+        sshStateDirs = pkgs.runCommand "homebase-ssh-state" {} ''
+          install -d -m 0750 $out/run/sshd
+          mkdir -p $out/var/empty
         '';
 
         sshLayer = buildLayer {
-          copyToRoot = [ sshRuntime sshConfig sshServiceRun ];
-          perms = [
-            { path = sshConfig; regex = "^/run/sshd$"; uid = 75; gid = 75; dirMode = "0750"; }
-          ];
+          copyToRoot = [ sshRuntime sshStateDirs sshServiceRun ];
         };
 
         gossPreFile = pkgs.writeText "homebase-goss-pre.yaml" (builtins.readFile ./goss/pre/goss.yaml);
@@ -394,6 +390,7 @@
         baseHomeReference = pkgs.runCommand "homebase-home-reference-base" {} ''
           base=$out${referenceRoot}/00-base/home
           mkdir -p "$base/.config/fish/conf.d"
+          mkdir -p "$base/.config/nix"
           mkdir -p "$base/.ssh"
 
           install -Dm0644 ${pkgs.writeText "vscode-bashrc" ''
@@ -422,6 +419,12 @@ Host *
   ServerAliveInterval 120
   ServerAliveCountMax 3
           ''} "$base/.ssh/config"
+
+          install -Dm0644 ${pkgs.writeText "nix.conf" ''
+experimental-features = nix-command flakes
+substituters = https://cache.nixos.org/
+trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+          ''} "$base/.config/nix/nix.conf"
         '';
 
         editorHomeReference = pkgs.runCommand "homebase-home-reference-editor" {} ''
@@ -600,16 +603,6 @@ EOF
           };
         };
 
-        nixConfigLayer = buildLayer {
-          copyToRoot = pkgs.runCommand "homebase-nix-config" {} ''
-            install -Dm0644 ${pkgs.writeText "nix.conf" ''
-              experimental-features = nix-command flakes
-              substituters = https://cache.nixos.org/
-              trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
-            ''} $out/etc/nix/nix.conf
-          '';
-        };
-
       in rec {
         packages.editor-settings = vscodeMachineSettings;
         packages."homebase-sudo" = sudoStreamImage;
@@ -629,7 +622,6 @@ EOF
             containerExtrasLayer
             # desktopLayer
             sshLayer
-            nixConfigLayer
           ];
 
           config = {
