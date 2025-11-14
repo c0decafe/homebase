@@ -223,13 +223,9 @@
           set -euo pipefail
 
           cmd=( "$@" )
-          if [ "''${#cmd[@]}" -gt 0 ]; then
-            exec "''${cmd[@]}"
-          fi
-
           if [ "''${#cmd[@]}" -eq 0 ]; then
-          echo "[homebase-entrypoint] setup complete, entering idle loop" >&2
-          cmd=(/bin/bash -lc "sleep infinity")
+            echo "[homebase-entrypoint] setup complete, entering idle loop" >&2
+            cmd=(/bin/bash -lc "sleep infinity")
           fi
 
           sudo /bin/homebase-setup
