@@ -28,6 +28,10 @@ jobs:
         run: |
           docker run -d --name homebase-smoke --entrypoint /bin/bash ghcr.io/c0decafe/homebase:latest -lc "sleep infinity"
 
+      - name: Print image os-release
+        run: |
+          docker exec homebase-smoke cat /etc/os-release
+
       - name: Verify goss wrappers
         run: |
           docker exec homebase-smoke bash -lc "goss-pre --version >/dev/null"
@@ -38,7 +42,7 @@ jobs:
 
       - name: Run init script
         run: |
-          docker exec homebase-smoke sudo /usr/local/share/init.sh
+          docker exec homebase-smoke sudo /etc/init.d/init.sh
 
       - name: Run post-init goss suite
         run: |

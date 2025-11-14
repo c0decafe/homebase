@@ -1,10 +1,10 @@
 file:
-  /usr/local/share/init.sh:
+  /etc/init.d/init.sh:
     exists: true
-    filetype: symlink
-  /usr/local/share/ssh-init.sh:
+    filetype: file
+  /etc/init.d/ssh-init.sh:
     exists: true
-    filetype: symlink
+    filetype: file
   /bin/doas:
     exists: true
     filetype: file
@@ -34,10 +34,10 @@ group:
 
 command:
   init-is-executable:
-    exec: bash -lc "test -x /usr/local/share/init.sh"
+    exec: bash -lc "test -x /etc/init.d/init.sh"
     exit-status: 0
   ssh-init-is-executable:
-    exec: bash -lc "test -x /usr/local/share/ssh-init.sh"
+    exec: bash -lc "test -x /etc/init.d/ssh-init.sh"
     exit-status: 0
   sudo-works:
     exec: bash -lc "sudo -n true"

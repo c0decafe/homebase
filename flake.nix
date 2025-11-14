@@ -21,18 +21,11 @@
 
         buildImage = n2c.nix2container.buildImage;
         buildLayer = n2c.nix2container.buildLayer;
-        mkShareScript = { drv, binName, targetName ? binName }:
-          pkgs.linkFarm "homebase-${targetName}-share" [
-            {
-              name = "usr/local/share/${targetName}";
-              path = "${drv}/bin/${binName}";
-            }
-          ];
         # ---- Base tools (lean) ----
         runtimeTools = with pkgs; [
           bashInteractive coreutils findutils gnugrep gawk
           curl wget jq tree which gnused gnutar gzip xz
-          nixVersions.stable fish tmux iproute2
+          nixVersions.stable fish tmux iproute2 runit
         ];
 
         editorTools = with pkgs; [
@@ -54,91 +47,62 @@
           else if self ? lastModified && self.lastModified != null then builtins.toString self.lastModified
           else "dev";
 
-        dockerInitBin = pkgs.writeShellScriptBin "docker-init.sh" ''
+        homebaseSetup = pkgs.writeShellScriptBin "homebase-setup" ''
           #!/usr/bin/env bash
           set -euo pipefail
 
-          export PATH=${pkgs.lib.makeBinPath [ pkgs.docker pkgs.containerd pkgs.runc pkgs.iptables pkgs.pigz pkgs.util-linux pkgs.procps pkgs.coreutils ]}:$PATH
-          SOCKET=/var/run/docker.sock
+          REF_HOME="/etc/homebase/home"
+          TARGET_HOME="/home"
+          TARGET_WORKSPACES="/workspaces"
+          USER_UID=1000
+          USER_GID=1000
 
-          mkdir -p /var/lib/docker
-          mkdir -p /var/run
-          export DOCKER_RAMDISK=yes
+          log() { echo "[homebase-setup] $*" >&2; }
 
-          if pgrep -x dockerd >/dev/null 2>&1; then
-            pkill dockerd || true
-          fi
-          if pgrep -x containerd >/dev/null 2>&1; then
-            pkill containerd || true
-          fi
-
-          if [ -d /sys/kernel/security ] && ! mountpoint -q /sys/kernel/security; then
-            mount -t securityfs none /sys/kernel/security || echo "WARN: could not mount securityfs" >&2
+          if [ "$(id -u)" -ne 0 ]; then
+            log "homebase-setup must run as root (use sudo)"
+            exit 1
           fi
 
-          if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
-            mkdir -p /sys/fs/cgroup/init
-            xargs -rn1 < /sys/fs/cgroup/cgroup.procs > /sys/fs/cgroup/init/cgroup.procs || true
-            sed -e 's/ / +/g' -e 's/^/+/' < /sys/fs/cgroup/cgroup.controllers > /sys/fs/cgroup/cgroup.subtree_control
+          ensure_dir() {
+            local path="$1"
+            local mode="$2"
+            install -d -m "$mode" "$path"
+            chmod "$mode" "$path"
+            chown "$USER_UID:$USER_GID" "$path"
+          }
+
+          ensure_dir "$TARGET_HOME" 0755
+          ensure_dir "$TARGET_WORKSPACES" 0755
+
+          if [ -d "$REF_HOME" ]; then
+            log "installing reference home files"
+            cp -an "$REF_HOME/." "$TARGET_HOME"
+          else
+            log "reference home files not found at $REF_HOME"
           fi
 
-          if pgrep -x dockerd >/dev/null; then
-            echo "dockerd already running" >&2
-            exit 0
-          fi
-
-          if pgrep -x containerd >/dev/null; then
-            pkill containerd || true
-          fi
-
-          rm -f "$SOCKET"
-
-          ${pkgs.containerd}/bin/containerd >/tmp/containerd.log 2>&1 &
-          sleep 2
-
-          ${pkgs.docker}/bin/dockerd --host=unix://$SOCKET > /tmp/dockerd.log 2>&1 &
-
-          for i in $(seq 1 30); do
-            if ${pkgs.docker}/bin/docker info >/dev/null 2>&1; then
-              chown root:docker "$SOCKET" || true
-              chmod 660 "$SOCKET" || true
-              exit 0
+          if [ -d "$TARGET_HOME/.ssh" ]; then
+            chmod 0700 "$TARGET_HOME/.ssh" || true
+            if compgen -G "$TARGET_HOME/.ssh/*" >/dev/null 2>&1; then
+              chmod 0600 "$TARGET_HOME/.ssh/"* || true
             fi
-            sleep 1
-          done
+          fi
 
-          echo "dockerd failed to start" >&2
-          exit 1
+          chown -R "$USER_UID:$USER_GID" "$TARGET_HOME" || log "warning: unable to chown $TARGET_HOME"
+          chown "$USER_UID:$USER_GID" "$TARGET_WORKSPACES" || true
         '';
 
-        dockerInitShare = mkShareScript {
-          drv = dockerInitBin;
-          binName = "docker-init.sh";
-        };
-
-        sshInitBin = pkgs.writeShellScriptBin "ssh-init.sh" ''
+        sshServiceRun = pkgs.writeShellScript "homebase-ssh-service" ''
           #!/usr/bin/env bash
           set -euo pipefail
           PATH=${pkgs.lib.makeBinPath [ pkgs.procps pkgs.coreutils pkgs.openssh pkgs.util-linux pkgs.curl ]}:$PATH
 
-          log() { echo "[ssh-init] $*" >&2; }
+          log() { echo "[homebase-ssh] $*" >&2; }
           fail() { log "$1"; exit 1; }
 
           if [ "$(id -u)" -ne 0 ]; then
-            fail "ssh-init must run as root (use sudo)"
-          fi
-
-          sshd_running=0
-          if pgrep -x sshd >/dev/null 2>&1; then
-            sshd_running=1
-          fi
-
-          if [ ! -x ${pkgs.openssh}/bin/sshd ]; then
-            fail "sshd binary missing"
-          fi
-
-          if [ ! -f /etc/ssh/sshd_config ]; then
-            fail "/etc/ssh/sshd_config not found"
+            fail "ssh service must run as root"
           fi
 
           mkdir -p /var/run/sshd || fail "cannot create /var/run/sshd"
@@ -164,7 +128,7 @@
 
             refresh_keys=0
             if [ -n "$github_user" ]; then
-              if [ "$sshd_running" -eq 0 ] || [ ! -f "$auth_file" ] || [ -n "$force_keys" ]; then
+              if [ ! -f "$auth_file" ] || [ -n "$force_keys" ]; then
                 refresh_keys=1
               fi
             fi
@@ -194,151 +158,115 @@
             log "vscode home not found at $vscode_home"
           fi
 
-          if [ "$sshd_running" -eq 1 ]; then
-            log "sshd already running"
-            exit 0
-          fi
-
-          log "starting sshd"
-          ${pkgs.openssh}/bin/sshd -f /etc/ssh/sshd_config -D &
-          pid=$!
-
-          for _ in $(seq 1 40); do
-            if pgrep -x sshd >/dev/null 2>&1; then
-              log "sshd ready"
-              exit 0
-            fi
-            if ! kill -0 "$pid" 2>/dev/null; then
-              wait "$pid" || true
-              fail "sshd exited before becoming ready"
-            fi
-            sleep 0.25
-          done
-
-          fail "sshd did not report ready in time"
+          exec ${pkgs.openssh}/bin/sshd -f /etc/ssh/sshd_config -D
         '';
 
-        sshInitShare = mkShareScript {
-          drv = sshInitBin;
-          binName = "ssh-init.sh";
-        };
-
-        initBin = pkgs.writeShellScriptBin "init.sh" ''
+        dockerServiceRun = pkgs.writeShellScript "homebase-docker-service" ''
           #!/usr/bin/env bash
           set -euo pipefail
-          trap 'echo "[init] error on line $LINENO" >&2' ERR
+          PATH=${pkgs.lib.makeBinPath [ pkgs.docker pkgs.containerd pkgs.runc pkgs.iptables pkgs.pigz pkgs.util-linux pkgs.procps pkgs.coreutils ]}:$PATH
 
-          REF_HOME="/usr/local/share/homebase/home"
-          TARGET_HOME="/home"
-          TARGET_WORKSPACES="/workspaces"
-          USER_UID=1000
-          USER_GID=1000
+          if [ "''${HOMEBASE_ENABLE_DOCKER:-1}" != "1" ]; then
+            echo "[homebase-docker] disabled via HOMEBASE_ENABLE_DOCKER" >&2
+            exec sleep infinity
+          fi
 
-          log() { echo "[init] $*" >&2; }
+          SOCKET=/var/run/docker.sock
+          mkdir -p /var/lib/docker
+          mkdir -p /var/run
+          export DOCKER_RAMDISK=yes
 
-          usage() {
-            cat >&2 <<'EOF'
-Usage: init.sh [--entrypoint [CMD...]]
+          if [ -d /sys/kernel/security ] && ! mountpoint -q /sys/kernel/security; then
+            mount -t securityfs none /sys/kernel/security || echo "WARN: could not mount securityfs" >&2
+          fi
 
-Run without flags to perform a single initialization pass (legacy behavior).
-Use --entrypoint to run initialization before exec'ing CMD (or a sensible
-default when CMD is omitted).
-EOF
+          if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
+            mkdir -p /sys/fs/cgroup/init
+            xargs -rn1 < /sys/fs/cgroup/cgroup.procs > /sys/fs/cgroup/init/cgroup.procs || true
+            sed -e 's/ / +/g' -e 's/^/+/' < /sys/fs/cgroup/cgroup.controllers > /sys/fs/cgroup/cgroup.subtree_control
+          fi
+
+          rm -f "$SOCKET"
+
+          ${pkgs.containerd}/bin/containerd >/tmp/containerd.log 2>&1 &
+          containerd_pid=$!
+
+          cleanup() {
+            if [ -n "''${containerd_pid:-}" ]; then
+              kill "$containerd_pid" >/dev/null 2>&1 || true
+              wait "$containerd_pid" >/dev/null 2>&1 || true
+              containerd_pid=""
+            fi
           }
 
-          if [ "$(id -u)" -ne 0 ]; then
-            log "init.sh must run as root (use sudo)"
-            exit 1
-          fi
+          trap cleanup EXIT INT TERM
 
-          mode="oneshot"
-          entrypoint_cmd=()
-
-          if [ "$#" -gt 0 ]; then
-            case "$1" in
-              --entrypoint)
-                mode="entrypoint"
-                shift
-                if [ "$#" -gt 0 ]; then
-                  entrypoint_cmd=("$@")
-                fi
-                ;;
-              -h|--help)
-                usage
-                exit 0
-                ;;
-              --)
-                shift
-                mode="entrypoint"
-                entrypoint_cmd=("$@")
-                ;;
-              *)
-                log "unknown argument: $1"
-                usage
-                exit 1
-                ;;
-            esac
-          fi
-
-          ensure_dir() {
-            local path="$1"
-            local mode="$2"
-            install -d -m "$mode" "$path"
-            chmod "$mode" "$path"
-            chown "$USER_UID:$USER_GID" "$path"
-          }
-
-          ensure_dir "$TARGET_HOME" 0755
-          ensure_dir "$TARGET_WORKSPACES" 0755
-
-          if [ -d "$REF_HOME" ]; then
-            log "installing reference home files"
-            cp -an "$REF_HOME/." "$TARGET_HOME"
-          else
-            log "reference home files not found at $REF_HOME"
-          fi
-
-          if [ -d "$TARGET_HOME/.ssh" ]; then
-            chmod 0700 "$TARGET_HOME/.ssh" || true
-            if compgen -G "$TARGET_HOME/.ssh/*" >/dev/null 2>&1; then
-              chmod 0600 "$TARGET_HOME/.ssh/"* || true
-            fi
-          fi
-
-          if [ "$(id -u)" -eq 0 ]; then
-            chown -R "$USER_UID:$USER_GID" "$TARGET_HOME" || log "warning: unable to chown $TARGET_HOME"
-            chown "$USER_UID:$USER_GID" "$TARGET_WORKSPACES" || true
-          else
-            log "not running as root; skipping chown"
-          fi
-
-          if [ -x /usr/local/share/ssh-init.sh ]; then
-            /usr/local/share/ssh-init.sh || true
-          fi
-
-#         if [ -x /usr/local/share/docker-init.sh ]; then
-#           /usr/local/share/docker-init.sh || true
-#         fi
-
-          if [ "$mode" = "entrypoint" ]; then
-            if [ "''${#entrypoint_cmd[@]}" -eq 0 ]; then
-              entrypoint_cmd=(sleep infinity)
-            fi
-            log "entrypoint exec: ''${entrypoint_cmd[*]}"
-            exec "''${entrypoint_cmd[@]}"
-          fi
+          exec ${pkgs.docker}/bin/dockerd --host=unix://$SOCKET
         '';
 
-        initShare = mkShareScript {
-          drv = initBin;
-          binName = "init.sh";
-        };
+        runitServices = pkgs.runCommand "homebase-runit-services" {} ''
+          install -Dm0755 ${sshServiceRun} $out/etc/service/sshd/run
+          install -Dm0755 ${dockerServiceRun} $out/etc/service/docker/run
+        '';
 
-        shareScripts = pkgs.buildEnv {
-          name = "homebase-share-scripts";
-          paths = [ dockerInitShare sshInitShare initShare ];
-          pathsToLink = [ "/usr" ];
-        };
+        homebaseEntrypoint = pkgs.writeShellScriptBin "homebase-entrypoint" ''
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          cmd=( "$@" )
+          if [ "''${#cmd[@]}" -eq 0 ]; then
+            cmd=(/bin/bash -lc "sleep infinity")
+          elif [ "''${#cmd[@]}" -eq 2 ] && [ "''${cmd[0]}" = "/bin/bash" ] && [ "''${cmd[1]}" = "-lc" ]; then
+            cmd+=( "sleep infinity" )
+          fi
+
+          sudo /bin/homebase-setup
+
+          sudo ${pkgs.runit}/bin/runsvdir -P /etc/service &
+          runsvdir_pid=$!
+
+          cleanup_done=0
+          cmd_pid=""
+
+          forward_signal() {
+            local sig="$1"
+            if [ -n "$cmd_pid" ] && kill -0 "$cmd_pid" >/dev/null 2>&1; then
+              kill -s "$sig" "$cmd_pid" >/dev/null 2>&1 || true
+            fi
+          }
+
+          cleanup() {
+            if [ "$cleanup_done" -eq 1 ]; then
+              return
+            fi
+            cleanup_done=1
+
+            for svc in /etc/service/*; do
+              if [ -d "$svc" ]; then
+                sudo ${pkgs.runit}/bin/sv term "$svc" >/dev/null 2>&1 || true
+                sudo ${pkgs.runit}/bin/sv wait "$svc" >/dev/null 2>&1 || true
+              fi
+            done
+
+            if [ -n "$runsvdir_pid" ]; then
+              sudo kill "$runsvdir_pid" >/dev/null 2>&1 || true
+              wait "$runsvdir_pid" >/dev/null 2>&1 || true
+              runsvdir_pid=""
+            fi
+          }
+
+          trap 'forward_signal TERM' TERM
+          trap 'forward_signal INT' INT
+          trap 'cleanup' EXIT
+
+          "${cmd[@]}" &
+          cmd_pid=$!
+          wait "$cmd_pid"
+          status=$?
+
+          cleanup
+          exit "$status"
+        '';
 
         fakeNssExtended = pkgs.dockerTools.fakeNss.override {
           extraPasswdLines = [
@@ -383,8 +311,6 @@ EOF
             ClientAliveCountMax 3
             Subsystem sftp ${pkgs.openssh}/libexec/sftp-server
           ''} $out/etc/ssh/sshd_config
-
-          cp -a ${sshInitShare}/. $out/
         '';
 
         sshLayer = buildLayer {
@@ -470,8 +396,8 @@ Host *
         '';
 
         homeReferenceShare = pkgs.runCommand "homebase-home-share" {} ''
-          mkdir -p $out/usr/local/share/homebase
-          cp -a ${homeReference}/home $out/usr/local/share/homebase/
+          mkdir -p $out/etc/homebase
+          cp -a ${homeReference}/home $out/etc/homebase/
         '';
 
         systemFiles = pkgs.runCommand "homebase-system-files" {} ''
@@ -495,8 +421,8 @@ EOF
 
         baseTools = pkgs.buildEnv {
           name = "homebase-base-tools";
-          paths = runtimeTools ++ [ shareScripts homeReferenceShare ];
-          pathsToLink = [ "/bin" "/share" "/usr" ];
+          paths = runtimeTools ++ [ homeReferenceShare homebaseSetup homebaseEntrypoint runitServices ];
+          pathsToLink = [ "/bin" "/share" "/usr" "/etc" ];
         };
 
         baseRuntime = pkgs.runCommand "homebase-base-runtime" {} ''
@@ -524,7 +450,7 @@ EOF
         containerLayer = buildLayer {
           copyToRoot = pkgs.buildEnv {
             name = "homebase-container";
-            paths = containerTools ++ [ dockerInitShare ];
+            paths = containerTools;
             pathsToLink = [ "/bin" "/share" "/usr" ];
           };
         };
@@ -539,7 +465,6 @@ EOF
           copyToRoot = pkgs.runCommand "homebase-desktop" {} ''
             mkdir -p $out
             cp -a ${desktopEnv}/. $out/
-            mkdir -p $out/usr/local/share
             install -Dm0755 ${pkgs.writeScript "desktop-init.sh" ''
               #!/usr/bin/env bash
               set -euo pipefail
@@ -574,7 +499,7 @@ EOF
               fi
 
               wait $XVFB_PID
-            ''} $out/usr/local/share/desktop-init.sh
+            ''} $out/etc/init.d/desktop-init.sh
           '';
         };
 
@@ -662,8 +587,9 @@ EOF
               "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               "GIT_SSL_CAINFO=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+              "HOMEBASE_ENABLE_DOCKER=0"
             ];
-            Entrypoint = [ "/bin/bash" "-lc" ];
+            Entrypoint = [ "/bin/homebase-entrypoint" ];
             WorkingDir = "/workspaces";
             User       = "vscode";
             Labels = {
