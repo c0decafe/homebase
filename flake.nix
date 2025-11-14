@@ -228,7 +228,8 @@
           fi
 
           if [ "''${#cmd[@]}" -eq 0 ]; then
-            cmd=(/bin/bash -lc "sleep infinity")
+          echo "[homebase-entrypoint] setup complete, entering idle loop" >&2
+          cmd=(/bin/bash -lc "sleep infinity")
           fi
 
           sudo /bin/homebase-setup
