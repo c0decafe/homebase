@@ -444,9 +444,10 @@ VERSION="nixos-25.05-small"
 BUILD_ID="${buildId}"
 '';
 
-        osReleaseTree = pkgs.linkFarm "homebase-os-release-tree" [
-          { name = "etc/os-release"; path = osReleaseFile; }
-        ];
+        osReleaseTree = pkgs.runCommand "homebase-os-release-tree" {} ''
+          mkdir -p $out/etc
+          cp ${osReleaseFile} $out/etc/os-release
+        '';
 
         emptyLibTree = pkgs.runCommand "homebase-lib-tree" {} ''
           mkdir -p $out/lib
