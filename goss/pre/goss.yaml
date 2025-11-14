@@ -1,8 +1,14 @@
 file:
-  /etc/init.d/init.sh:
+  /bin/homebase-entrypoint:
     exists: true
     filetype: file
-  /etc/init.d/ssh-init.sh:
+  /bin/homebase-setup:
+    exists: true
+    filetype: file
+  /etc/service/sshd/run:
+    exists: true
+    filetype: file
+  /etc/service/docker/run:
     exists: true
     filetype: file
   /bin/doas:
@@ -33,11 +39,11 @@ group:
     exists: true
 
 command:
-  init-is-executable:
-    exec: bash -lc "test -x /etc/init.d/init.sh"
+  entrypoint-is-executable:
+    exec: bash -lc "test -x /bin/homebase-entrypoint"
     exit-status: 0
-  ssh-init-is-executable:
-    exec: bash -lc "test -x /etc/init.d/ssh-init.sh"
+  setup-is-executable:
+    exec: bash -lc "test -x /bin/homebase-setup"
     exit-status: 0
   sudo-works:
     exec: bash -lc "sudo -n true"
