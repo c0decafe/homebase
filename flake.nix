@@ -28,7 +28,6 @@
               path = "${drv}/bin/${binName}";
             }
           ];
-
         # ---- Base tools (lean) ----
         runtimeTools = with pkgs; [
           bashInteractive coreutils findutils gnugrep gawk
@@ -335,6 +334,12 @@ EOF
           binName = "init.sh";
         };
 
+        shareScripts = pkgs.buildEnv {
+          name = "homebase-share-scripts";
+          paths = [ dockerInitShare sshInitShare initShare ];
+          pathsToLink = [ "/usr" ];
+        };
+
         fakeNssExtended = pkgs.dockerTools.fakeNss.override {
           extraPasswdLines = [
             "vscode:x:1000:1000:VS Code:/home:${pkgs.fish}/bin/fish"
@@ -490,7 +495,7 @@ EOF
 
         baseTools = pkgs.buildEnv {
           name = "homebase-base-tools";
-          paths = runtimeTools ++ [ initShare homeReferenceShare ];
+          paths = runtimeTools ++ [ shareScripts homeReferenceShare ];
           pathsToLink = [ "/bin" "/share" "/usr" ];
         };
 
