@@ -17,11 +17,17 @@ file:
     mode: "0755"
     owner: vscode
     group: vscode
+  /usr/local:
+    exists: true
+    filetype: directory
+    mode: "0775"
+    owner: root
+    group: vscode
   /usr/local/share:
     exists: true
     filetype: directory
     mode: "0775"
-    owner: vscode
+    owner: root
     group: vscode
   /home/vscode/.ssh/authorized_keys:
     exists: true

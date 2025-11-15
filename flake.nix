@@ -63,6 +63,7 @@
           TARGET_HOME_ROOT="/home"
           TARGET_USER_HOME="$TARGET_HOME_ROOT/vscode"
           TARGET_WORKSPACES="/workspaces"
+          CODE_GROUP="vscode"
           USER_UID=1000
           USER_GID=1000
 
@@ -89,10 +90,19 @@
             chown 0:0 "$path"
           }
 
+          ensure_code_dir() {
+            local path="$1"
+            local mode="$2"
+            install -d -m "$mode" "$path"
+            chown root:"$CODE_GROUP" "$path"
+            chmod "$mode" "$path"
+          }
+
           ensure_root_dir "$TARGET_HOME_ROOT" 0755
           ensure_user_dir "$TARGET_USER_HOME" 0755
           ensure_user_dir "$TARGET_WORKSPACES" 0755
-          install -d -m 0775 -o "$USER_UID" -g "$USER_GID" /usr/local/share
+          ensure_code_dir "/usr/local" 0775
+          ensure_code_dir "/usr/local/share" 0775
 
           install_reference_homes() {
             local root="$1"
