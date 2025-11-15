@@ -289,11 +289,11 @@
           #!/usr/bin/env bash
           set -euo pipefail
 
-          mode="normal"
-          if [ "''${HOMEBASE_ENTRYPOINT_MODE:-}" = "post-start" ]; then
-            mode="post-start"
-          fi
-          if [ "''${1:-}" = "--post-start" ]; then
+          mode="post-start"
+          if [ "''${1:-}" = "--init" ]; then
+            mode="normal"
+            shift
+          elif [ "''${1:-}" = "--post-start" ]; then
             mode="post-start"
             shift
           fi
@@ -735,7 +735,7 @@ EOF
               "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               "HOMEBASE_ENABLE_DOCKER=0"
             ];
-            Entrypoint = [ "/bin/homebase-entrypoint" ];
+            Entrypoint = [ "/bin/homebase-entrypoint" "--init" ];
             WorkingDir = "/workspaces";
             User       = "vscode";
             Labels = {
