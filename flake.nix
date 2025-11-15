@@ -396,7 +396,7 @@
 
         sshInitLink = pkgs.runCommand "homebase-ssh-init-link" {} ''
           mkdir -p $out/usr/local/share
-          ln -s /bin/homebase-ssh-service $out/usr/local/share/ssh-init.sh
+          ln -s /bin/homebase-ssh-init-shim $out/usr/local/share/ssh-init.sh
         '';
 
         sshLayer = buildLayer {
@@ -516,11 +516,33 @@ BUILD_ID="${buildId}"
           cp ${osReleaseFile} $out/etc/os-release
         '';
 
+        homebaseSshInitShim = pkgs.writeShellScriptBin "homebase-ssh-init-shim" ''
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          if pgrep -f homebase-ssh-service >/dev/null 2>&1; then
+            exit 0
+          fi
+
+          if [ "$(id -u)" -ne 0 ]; then
+            sudo /bin/homebase-ssh-service &
+          else
+            /bin/homebase-ssh-service &
+          fi
+
+          sleep 1
+          if ! pgrep -f homebase-ssh-service >/dev/null 2>&1; then
+            echo "[homebase-ssh-init] unable to launch homebase-ssh-service" >&2
+            exit 1
+          fi
+        '';
+
         baseTools = pkgs.buildEnv {
           name = "homebase-base-tools";
           paths = runtimeTools ++ [
             homebaseSetup
             homebaseEntrypoint
+            homebaseSshInitShim
           ];
           pathsToLink = [ "/bin" "/share" "/usr" "/etc" ];
         };
