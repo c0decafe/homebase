@@ -530,11 +530,24 @@ BUILD_ID="${buildId}"
             /bin/homebase-ssh-service &
           fi
 
-          sleep 1
-          if ! pgrep -f homebase-ssh-service >/dev/null 2>&1; then
-            echo "[homebase-ssh-init] unable to launch homebase-ssh-service" >&2
-            exit 1
+          wait_for_sshd() {
+            for _ in $(seq 1 30); do
+              if pgrep -f homebase-ssh-service >/dev/null 2>&1; then
+                if ss -lnpt | grep -q ":2222"; then
+                  return 0
+                fi
+              fi
+              sleep 1
+            done
+            return 1
+          }
+
+          if wait_for_sshd; then
+            exit 0
           fi
+
+          echo "[homebase-ssh-init] ssh service failed to start within timeout" >&2
+          exit 1
         '';
 
         baseTools = pkgs.buildEnv {
