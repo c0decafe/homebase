@@ -3,6 +3,12 @@ file:
     exists: true
     filetype: directory
     mode: "0755"
+    owner: root
+    group: root
+  /home/vscode:
+    exists: true
+    filetype: directory
+    mode: "0755"
     owner: vscode
     group: vscode
   /workspaces:
@@ -11,18 +17,18 @@ file:
     mode: "0755"
     owner: vscode
     group: vscode
-  /home/.ssh/authorized_keys:
+  /home/vscode/.ssh/authorized_keys:
     exists: true
     filetype: file
     mode: "0600"
     owner: vscode
     group: vscode
-  /home/.config/nix/nix.conf:
+  /home/vscode/.config/nix/nix.conf:
     exists: true
     filetype: file
     owner: vscode
     group: vscode
-  /home/.vscode-server/data/Machine/settings.json:
+  /home/vscode/.vscode-server/data/Machine/settings.json:
     exists: true
     filetype: file
     owner: vscode
