@@ -340,7 +340,7 @@
 
         fakeNssExtended = pkgs.dockerTools.fakeNss.override {
           extraPasswdLines = [
-            "vscode:x:1000:1000:VS Code:/home/vscode:${pkgs.fish}/bin/fish"
+            "vscode:x:1000:1000:VS Code:/home/vscode:/bin/bash"
             "sshd:x:75:75:Privilege-separated SSH:/run/sshd:/usr/sbin/nologin"
           ];
           extraGroupLines = [
