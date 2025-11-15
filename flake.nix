@@ -92,6 +92,7 @@
           ensure_root_dir "$TARGET_HOME_ROOT" 0755
           ensure_user_dir "$TARGET_USER_HOME" 0755
           ensure_user_dir "$TARGET_WORKSPACES" 0755
+          install -d -m 0775 -o "$USER_UID" -g "$USER_GID" /usr/local/share
 
           install_reference_homes() {
             local root="$1"
