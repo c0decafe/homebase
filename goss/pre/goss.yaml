@@ -5,6 +5,10 @@ file:
     exists: true
   /bin/homebase-ssh-service:
     exists: true
+  /usr/local/share/ssh-init.sh:
+    exists: true
+    filetype: symlink
+    linked-to: /bin/homebase-ssh-service
   /bin/homebase-docker-service:
     exists: true
   /bin/doas:
