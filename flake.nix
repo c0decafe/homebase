@@ -103,8 +103,6 @@
           ensure_user_dir "$TARGET_WORKSPACES" 0755
           ensure_code_dir "/usr/local" 0775
           ensure_code_dir "/usr/local/share" 0775
-          ln -sf /bin/homebase-ssh-service /usr/local/share/ssh-init.sh
-          chown -h root:"$CODE_GROUP" /usr/local/share/ssh-init.sh || true
 
           install_reference_homes() {
             local root="$1"
@@ -396,6 +394,11 @@
           mkdir -p $out/etc/ssh
         '';
 
+        sshInitLink = pkgs.runCommand "homebase-ssh-init-link" {} ''
+          mkdir -p $out/usr/local/share
+          ln -s /bin/homebase-ssh-service $out/usr/local/share/ssh-init.sh
+        '';
+
         sshLayer = buildLayer {
           copyToRoot = [ sshRuntime sshStateDirs sshServiceRun ];
         };
@@ -533,7 +536,7 @@ BUILD_ID="${buildId}"
 
         # ---- Layers ----
         baseLayer = buildLayer {
-          copyToRoot = [ baseTools baseRuntime systemFiles baseHomeReference ];
+          copyToRoot = [ baseTools baseRuntime systemFiles baseHomeReference sshInitLink ];
         };
 
         userLayer = buildLayer {
