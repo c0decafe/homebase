@@ -25,7 +25,7 @@
         runtimeTools = with pkgs; [
           bashInteractive coreutils findutils gnugrep gawk
           curl wget jq tree which gnused gnutar gzip xz
-          procps util-linux iproute2 iputils
+          procps util-linux iproute2 iputils socat
         ];
 
         userTools = with pkgs; [
@@ -310,6 +310,7 @@
 
           ssh_pid=""
           docker_pid=""
+          probe_pid=""
 
           start_ssh() {
             sudo /bin/homebase-ssh-service &
@@ -326,8 +327,22 @@
             start_docker
           fi
 
+          start_probe() {
+            local port=4505
+            if [ "$mode" != "post-start" ]; then
+              return
+            fi
+            if ! command -v socat >/dev/null 2>&1; then
+              return
+            fi
+            socat TCP-LISTEN:"$port",reuseaddr,fork SYSTEM:'printf "homebase post-start ready\n"' >/tmp/homebase-poststart-probe.log 2>&1 &
+            probe_pid=$!
+          }
+
+          start_probe
+
           cleanup() {
-            for pid in "''${ssh_pid}" "''${docker_pid}"; do
+            for pid in "''${ssh_pid}" "''${docker_pid}" "''${probe_pid}"; do
               if [ -n "$pid" ] && kill -0 "$pid" >/dev/null 2>&1; then
                 sudo kill "$pid" >/dev/null 2>&1 || true
                 wait "$pid" >/dev/null 2>&1 || true
