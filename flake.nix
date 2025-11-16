@@ -5,9 +5,11 @@
     nixpkgs.url       = "github:NixOS/nixpkgs/nixos-25.05-small";
     flake-utils.url   = "github:numtide/flake-utils";
     nix2container.url = "github:nlewo/nix2container";
+    home.url          = "./home";
+    home.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, flake-utils, nix2container }:
+  outputs = { self, nixpkgs, flake-utils, nix2container, home }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
@@ -55,144 +57,7 @@
           else if self ? lastModified && self.lastModified != null then builtins.toString self.lastModified
           else "dev";
 
-        homebaseSetup = pkgs.writeShellScriptBin "homebase-setup" ''
-          #!/usr/bin/env bash
-          set -euo pipefail
-
-          TARGET_HOME_ROOT="/home"
-          TARGET_USER_HOME="$TARGET_HOME_ROOT/vscode"
-          TARGET_WORKSPACES="/workspaces"
-          CODE_GROUP="vscode"
-          USER_UID=1000
-          USER_GID=1000
-
-          log() { echo "[homebase-setup] $*" >&2; }
-
-          if [ "$(id -u)" -ne 0 ]; then
-            log "homebase-setup must run as root (use sudo)"
-            exit 1
-          fi
-
-          ensure_user_dir() {
-            local path="$1"
-            local mode="$2"
-            install -d -m "$mode" "$path"
-            chmod "$mode" "$path"
-            chown "$USER_UID:$USER_GID" "$path"
-          }
-
-          ensure_root_dir() {
-            local path="$1"
-            local mode="$2"
-            install -d -m "$mode" "$path"
-            chmod "$mode" "$path"
-            chown 0:0 "$path"
-          }
-
-          ensure_code_dir() {
-            local path="$1"
-            local mode="$2"
-            install -d -m "$mode" "$path"
-            chown root:"$CODE_GROUP" "$path"
-            chmod "$mode" "$path"
-          }
-
-          ensure_root_dir "$TARGET_HOME_ROOT" 0755
-          ensure_user_dir "$TARGET_USER_HOME" 0755
-          ensure_user_dir "$TARGET_WORKSPACES" 0755
-          ensure_code_dir "/usr/local" 0775
-          ensure_code_dir "/usr/local/share" 0775
-
-          write_file_if_missing() {
-            local path="$1"
-            local mode="$2"
-            if [ -f "$path" ]; then
-              return
-            fi
-            install -Dm"$mode" /dev/null "$path"
-            cat >"$path"
-            chown "$USER_UID:$USER_GID" "$path"
-          }
-
-          mkdir -p "$TARGET_USER_HOME/.config/fish/conf.d"
-          mkdir -p "$TARGET_USER_HOME/.config/nix"
-          mkdir -p "$TARGET_USER_HOME/.ssh"
-          mkdir -p "$TARGET_USER_HOME/.vscode-server/data/Machine"
-
-          write_file_if_missing "$TARGET_USER_HOME/.bashrc" 0644 <<'EOF'
-if command -v direnv >/dev/null 2>&1; then
-  eval "$(direnv hook bash)"
-fi
-EOF
-
-          write_file_if_missing "$TARGET_USER_HOME/.zshrc" 0644 <<'EOF'
-if command -v direnv >/dev/null 2>&1; then
-  eval "$(direnv hook zsh)"
-fi
-EOF
-
-          write_file_if_missing "$TARGET_USER_HOME/.config/fish/conf.d/nix.fish" 0644 <<'EOF'
-if test -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
-  source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
-end
-if type -q direnv
-  eval (direnv hook fish)
-end
-EOF
-
-          write_file_if_missing "$TARGET_USER_HOME/.ssh/config" 0600 <<'EOF'
-Host *
-  ServerAliveInterval 120
-  ServerAliveCountMax 3
-EOF
-
-          write_file_if_missing "$TARGET_USER_HOME/.config/nix/nix.conf" 0644 <<'EOF'
-experimental-features = nix-command flakes
-substituters = https://cache.nixos.org/
-trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
-EOF
-
-          write_file_if_missing "$TARGET_USER_HOME/.vscode-server/data/Machine/settings.json" 0644 <<'EOF'
-{
-  "direnv.path.executable": "/bin/direnv",
-  "vscode-neovim.neovimExecutablePaths.linux": "/bin/nvim",
-  "nix.enableLanguageServer": true,
-  "nix.serverPath": "/bin/nixd",
-  "eslint.runtime": "/bin/node",
-  "stylelint.stylelintPath": "/bin/stylelint",
-  "prettier.prettierPath": "/bin/prettier",
-  "files.trimTrailingWhitespace": true,
-  "editor.formatOnSave": true,
-  "editor.minimap.enabled": false,
-  "editor.cursorBlinking": "solid",
-  "editor.renderWhitespace": "boundary",
-  "editor.rulers": [80],
-  "editor.guides.bracketPairsHorizontal": "active",
-  "editor.lineNumbers": "relative",
-  "editor.smoothScrolling": true,
-  "vim.enableNeovim": true,
-  "vim.neovimUseWSL": false,
-  "vim.useSystemClipboard": true,
-  "vim.statusBarColorControl": true,
-  "vim.highlightedyank.enable": true,
-  "workbench.startupEditor": "none",
-  "workbench.tips.enabled": false,
-  "workbench.welcomePage.walkthroughs.openOnInstall": false,
-  "extensions.ignoreRecommendations": true,
-  "telemetry.telemetryLevel": "off"
-}
-EOF
-
-          if [ -d "$TARGET_USER_HOME/.ssh" ]; then
-            chmod 0700 "$TARGET_USER_HOME/.ssh" || true
-            if compgen -G "$TARGET_USER_HOME/.ssh/*" >/dev/null 2>&1; then
-              chmod 0600 "$TARGET_USER_HOME/.ssh/"* || true
-            fi
-          fi
-
-          chown -R "$USER_UID:$USER_GID" "$TARGET_USER_HOME" || log "warning: unable to chown $TARGET_USER_HOME"
-          chown "$USER_UID:$USER_GID" "$TARGET_WORKSPACES" || true
-        '';
+        homebaseSetup = home.packages.${system}.setup;
 
         sshServiceRun = pkgs.writeShellScriptBin "homebase-ssh-service" ''
           #!/usr/bin/env bash

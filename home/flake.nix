@@ -1,0 +1,157 @@
+{
+  description = "Homebase home profile";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05-small";
+  };
+
+  outputs = { self, nixpkgs }:
+    let
+      systems = [ "x86_64-linux" "aarch64-linux" ];
+      forAllSystems = nixpkgs.lib.genAttrs systems;
+    in {
+      packages = forAllSystems (system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+          referenceRoot = "/share/homebase/home-reference.d";
+          homeFiles = pkgs.runCommand "homebase-home-reference" {} ''
+            root=$out${referenceRoot}
+            base=$root/00-base/home/vscode
+            mkdir -p "$base/.config/fish/conf.d"
+            mkdir -p "$base/.config/nix"
+            mkdir -p "$base/.ssh"
+
+            install -Dm0644 ${pkgs.writeText "vscode-bashrc" ''
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv hook bash)"
+fi
+            ''} "$base/.bashrc"
+
+            install -Dm0644 ${pkgs.writeText "vscode-zshrc" ''
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv hook zsh)"
+fi
+            ''} "$base/.zshrc"
+
+            install -Dm0644 ${pkgs.writeText "nix.fish" ''
+if test -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
+  source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
+end
+if type -q direnv
+  eval (direnv hook fish)
+end
+            ''} "$base/.config/fish/conf.d/nix.fish"
+
+            install -Dm0644 ${pkgs.writeText "ssh-config" ''
+Host *
+  ServerAliveInterval 120
+  ServerAliveCountMax 3
+            ''} "$base/.ssh/config"
+
+            install -Dm0644 ${pkgs.writeText "nix.conf" ''
+experimental-features = nix-command flakes
+substituters = https://cache.nixos.org/
+trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+            ''} "$base/.config/nix/nix.conf"
+
+            editor=$root/10-editor/home/vscode
+            mkdir -p "$editor/.vscode-server/data/Machine"
+            install -Dm0644 ${pkgs.writeText "vscode-machine-settings.json" (builtins.toJSON {
+              "direnv.path.executable" = "/bin/direnv";
+              "vscode-neovim.neovimExecutablePaths.linux" = "/bin/nvim";
+              "nix.enableLanguageServer" = true;
+              "nix.serverPath" = "/bin/nixd";
+              "eslint.runtime" = "/bin/node";
+              "stylelint.stylelintPath" = "/bin/stylelint";
+              "prettier.prettierPath" = "/bin/prettier";
+              "files.trimTrailingWhitespace" = true;
+              "editor.formatOnSave" = true;
+              "editor.minimap.enabled" = false;
+              "editor.cursorBlinking" = "solid";
+              "editor.renderWhitespace" = "boundary";
+              "editor.rulers" = [ 80 ];
+              "editor.guides.bracketPairsHorizontal" = "active";
+              "editor.lineNumbers" = "relative";
+              "editor.smoothScrolling" = true;
+              "vim.enableNeovim" = true;
+              "vim.neovimUseWSL" = false;
+              "vim.useSystemClipboard" = true;
+              "vim.statusBarColorControl" = true;
+              "vim.highlightedyank.enable" = true;
+              "workbench.startupEditor" = "none";
+              "workbench.tips.enabled" = false;
+              "workbench.welcomePage.walkthroughs.openOnInstall" = false;
+              "extensions.ignoreRecommendations" = true;
+              "telemetry.telemetryLevel" = "off";
+            })} \
+              "$editor/.vscode-server/data/Machine/settings.json"
+          '';
+
+          setupScript = pkgs.writeShellScriptBin "homebase-home-setup" ''
+            #!/usr/bin/env bash
+            set -euo pipefail
+
+            if [ "$(id -u)" -ne 0 ]; then
+              echo "homebase-home-setup must run as root" >&2
+              exit 1
+            fi
+
+            REF_ROOT=${homeFiles}${referenceRoot}
+            TARGET_HOME_ROOT="${TARGET_HOME_ROOT:-/home}"
+            TARGET_USER_HOME="$TARGET_HOME_ROOT/vscode"
+            TARGET_WORKSPACES="${TARGET_WORKSPACES:-/workspaces}"
+            CODE_GROUP="${CODE_GROUP:-vscode}"
+            USER_UID="${USER_UID:-1000}"
+            USER_GID="${USER_GID:-1000}"
+
+            ensure_user_dir() {
+              local path="$1"
+              install -d -m 0755 "$path"
+              chown "$USER_UID:$USER_GID" "$path"
+            }
+
+            ensure_root_dir() {
+              local path="$1"
+              install -d -m 0755 "$path"
+              chown 0:0 "$path"
+            }
+
+            ensure_code_dir() {
+              local path="$1"
+              install -d -m 0775 "$path"
+              chown root:"$CODE_GROUP" "$path"
+            }
+
+            ensure_root_dir "$TARGET_HOME_ROOT"
+            ensure_user_dir "$TARGET_USER_HOME"
+            ensure_user_dir "$TARGET_WORKSPACES"
+            ensure_code_dir /usr/local
+            ensure_code_dir /usr/local/share
+
+            if [ -d "$REF_ROOT" ]; then
+              tar -C "$REF_ROOT" -cf - . | \
+                tar -C "$TARGET_HOME_ROOT" --owner="$USER_UID" --group="$USER_GID" -xpf -
+            fi
+
+            if [ -d "$TARGET_USER_HOME/.ssh" ]; then
+              chmod 0700 "$TARGET_USER_HOME/.ssh"
+              chmod 0600 "$TARGET_USER_HOME/.ssh"/* || true
+            fi
+
+            chown -R "$USER_UID:$USER_GID" "$TARGET_USER_HOME"
+            chown "$USER_UID:$USER_GID" "$TARGET_WORKSPACES" || true
+          '';
+        in {
+          files = homeFiles;
+          setup = setupScript;
+          default = setupScript;
+        });
+
+      apps = forAllSystems (system: {
+        default = {
+          type = "app";
+          program = "${self.packages.${system}.setup}/bin/homebase-home-setup";
+        };
+      });
+    };
+}
