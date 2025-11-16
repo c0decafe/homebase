@@ -59,7 +59,6 @@
           #!/usr/bin/env bash
           set -euo pipefail
 
-          REF_ROOT="${referenceRoot}"
           TARGET_HOME_ROOT="/home"
           TARGET_USER_HOME="$TARGET_HOME_ROOT/vscode"
           TARGET_WORKSPACES="/workspaces"
@@ -104,54 +103,85 @@
           ensure_code_dir "/usr/local" 0775
           ensure_code_dir "/usr/local/share" 0775
 
-          install_reference_homes() {
-            local root="$1"
-            local dest_root="$2"
-            if [ ! -d "$root" ]; then
-              log "reference home files not found at $root"
+          write_file_if_missing() {
+            local path="$1"
+            local mode="$2"
+            if [ -f "$path" ]; then
               return
             fi
-
-            shopt -s nullglob
-            local refs=("$root"/*)
-            shopt -u nullglob
-
-            if [ "''${#refs[@]}" -eq 0 ]; then
-              log "no reference home overlays present under $root"
-              return
-            fi
-
-            for ref in "''${refs[@]}"; do
-              if [ ! -d "$ref/home" ]; then
-                continue
-              fi
-              shopt -s nullglob
-              local overlays=("$ref/home"/*)
-              shopt -u nullglob
-
-              if [ "''${#overlays[@]}" -eq 0 ]; then
-                continue
-              fi
-
-              for overlay in "''${overlays[@]}"; do
-                if [ ! -d "$overlay" ]; then
-                  continue
-                fi
-                local username
-                username=$(basename "$overlay")
-                local target="$dest_root/$username"
-                install -d -m 0755 "$target"
-                log "installing reference home files from $ref for $username"
-                ${pkgs.rsync}/bin/rsync -a \
-                  --ignore-existing \
-                  --chown="$USER_UID:$USER_GID" \
-                  --chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r \
-                  "$overlay"/ "$target"/
-              done
-            done
+            install -Dm"$mode" /dev/null "$path"
+            cat >"$path"
+            chown "$USER_UID:$USER_GID" "$path"
           }
 
-          install_reference_homes "$REF_ROOT" "$TARGET_HOME_ROOT"
+          mkdir -p "$TARGET_USER_HOME/.config/fish/conf.d"
+          mkdir -p "$TARGET_USER_HOME/.config/nix"
+          mkdir -p "$TARGET_USER_HOME/.ssh"
+          mkdir -p "$TARGET_USER_HOME/.vscode-server/data/Machine"
+
+          write_file_if_missing "$TARGET_USER_HOME/.bashrc" 0644 <<'EOF'
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv hook bash)"
+fi
+EOF
+
+          write_file_if_missing "$TARGET_USER_HOME/.zshrc" 0644 <<'EOF'
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv hook zsh)"
+fi
+EOF
+
+          write_file_if_missing "$TARGET_USER_HOME/.config/fish/conf.d/nix.fish" 0644 <<'EOF'
+if test -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
+  source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
+end
+if type -q direnv
+  eval (direnv hook fish)
+end
+EOF
+
+          write_file_if_missing "$TARGET_USER_HOME/.ssh/config" 0600 <<'EOF'
+Host *
+  ServerAliveInterval 120
+  ServerAliveCountMax 3
+EOF
+
+          write_file_if_missing "$TARGET_USER_HOME/.config/nix/nix.conf" 0644 <<'EOF'
+experimental-features = nix-command flakes
+substituters = https://cache.nixos.org/
+trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+EOF
+
+          write_file_if_missing "$TARGET_USER_HOME/.vscode-server/data/Machine/settings.json" 0644 <<'EOF'
+{
+  "direnv.path.executable": "/bin/direnv",
+  "vscode-neovim.neovimExecutablePaths.linux": "/bin/nvim",
+  "nix.enableLanguageServer": true,
+  "nix.serverPath": "/bin/nixd",
+  "eslint.runtime": "/bin/node",
+  "stylelint.stylelintPath": "/bin/stylelint",
+  "prettier.prettierPath": "/bin/prettier",
+  "files.trimTrailingWhitespace": true,
+  "editor.formatOnSave": true,
+  "editor.minimap.enabled": false,
+  "editor.cursorBlinking": "solid",
+  "editor.renderWhitespace": "boundary",
+  "editor.rulers": [80],
+  "editor.guides.bracketPairsHorizontal": "active",
+  "editor.lineNumbers": "relative",
+  "editor.smoothScrolling": true,
+  "vim.enableNeovim": true,
+  "vim.neovimUseWSL": false,
+  "vim.useSystemClipboard": true,
+  "vim.statusBarColorControl": true,
+  "vim.highlightedyank.enable": true,
+  "workbench.startupEditor": "none",
+  "workbench.tips.enabled": false,
+  "workbench.welcomePage.walkthroughs.openOnInstall": false,
+  "extensions.ignoreRecommendations": true,
+  "telemetry.telemetryLevel": "off"
+}
+EOF
 
           if [ -d "$TARGET_USER_HOME/.ssh" ]; then
             chmod 0700 "$TARGET_USER_HOME/.ssh" || true
@@ -505,55 +535,6 @@ exec "$@"
           "prettier.prettierPath" = "/bin/prettier";
         });
 
-        referenceRoot = "/share/homebase/home-reference.d";
-
-        baseHomeReference = pkgs.runCommand "homebase-home-reference-base" {} ''
-          base=$out${referenceRoot}/00-base/home/vscode
-          mkdir -p "$base/.config/fish/conf.d"
-          mkdir -p "$base/.config/nix"
-          mkdir -p "$base/.ssh"
-
-          install -Dm0644 ${pkgs.writeText "vscode-bashrc" ''
-if command -v direnv >/dev/null 2>&1; then
-  eval "$(direnv hook bash)"
-fi
-          ''} "$base/.bashrc"
-
-          install -Dm0644 ${pkgs.writeText "vscode-zshrc" ''
-if command -v direnv >/dev/null 2>&1; then
-  eval "$(direnv hook zsh)"
-fi
-          ''} "$base/.zshrc"
-
-          install -Dm0644 ${pkgs.writeText "nix.fish" ''
-if test -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
-  source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
-end
-if type -q direnv
-  eval (direnv hook fish)
-end
-          ''} "$base/.config/fish/conf.d/nix.fish"
-
-          install -Dm0644 ${pkgs.writeText "ssh-config" ''
-Host *
-  ServerAliveInterval 120
-  ServerAliveCountMax 3
-          ''} "$base/.ssh/config"
-
-          install -Dm0644 ${pkgs.writeText "nix.conf" ''
-experimental-features = nix-command flakes
-substituters = https://cache.nixos.org/
-trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
-          ''} "$base/.config/nix/nix.conf"
-        '';
-
-        editorHomeReference = pkgs.runCommand "homebase-home-reference-editor" {} ''
-          editor=$out${referenceRoot}/10-editor/home/vscode
-          mkdir -p "$editor/.vscode-server/data/Machine"
-          install -Dm0644 ${vscodeMachineSettings} \
-            "$editor/.vscode-server/data/Machine/settings.json"
-        '';
-
         osReleaseFile = pkgs.writeText "homebase-os-release" ''
 NAME="Homebase (Nix)"
 PRETTY_NAME="Homebase (Nix) Codespace Image"
@@ -591,7 +572,7 @@ BUILD_ID="${buildId}"
 
         # ---- Layers ----
         baseLayer = buildLayer {
-          copyToRoot = [ baseTools baseRuntime systemFiles baseHomeReference stockSshInit ];
+          copyToRoot = [ baseTools baseRuntime systemFiles stockSshInit ];
         };
 
         userLayer = buildLayer {
@@ -609,7 +590,6 @@ BUILD_ID="${buildId}"
               paths = editorTools;
               pathsToLink = [ "/bin" "/share" ];
             })
-            editorHomeReference
           ];
         };
 
