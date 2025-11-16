@@ -415,23 +415,39 @@
           executable = true;
           text = ''
 #!/usr/bin/env bash
-# This script is intended to be run as root with a container that runs as root (even if you connect with a different user)
-# However, it supports running as a user other than root if passwordless sudo is configured for that same user.
+# Compatible with the default devcontainer ssh init helper but launches the homebase ssh service.
 
-set -e 
+set -euo pipefail
 
-sudoIf()
-{
-    if [ "$(id -u)" -ne 0 ]; then
-        sudo "$@"
-    else
-        "$@"
-    fi
+LOGFILE=/tmp/sshd.log
+ssh_pid=""
+
+start_service() {
+  if [ "$(id -u)" -ne 0 ]; then
+    sudo /bin/homebase-ssh-service >>"$LOGFILE" 2>&1 &
+  else
+    /bin/homebase-ssh-service >>"$LOGFILE" 2>&1 &
+  fi
+  ssh_pid=$!
 }
 
+wait_for_port() {
+  for _ in $(seq 1 30); do
+    if ss -lnpt | grep -q ":2222"; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
 
-# ** Start SSH server **
-sudoIf /etc/init.d/ssh start 2>&1 | sudoIf tee /tmp/sshd.log > /dev/null
+if ! pgrep -f homebase-ssh-service >/dev/null 2>&1; then
+  start_service
+fi
+
+if ! wait_for_port; then
+  echo "[ssh-init] ssh service failed to start (see $LOGFILE)" >&2
+fi
 
 set +e
 exec "$@"
