@@ -128,10 +128,27 @@ trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDS
             ensure_code_dir /usr/local
             ensure_code_dir /usr/local/share
 
-            if [ -d "$REF_ROOT" ]; then
-              tar -C "$REF_ROOT" -cf - . | \
+            apply_layer() {
+              local layer="$1"
+              local source="$layer/home"
+              if [ ! -d "$source" ]; then
+                return
+              fi
+              tar -C "$source" -cf - . | \
                 tar -C "$TARGET_HOME_ROOT" --owner="$USER_UID" --group="$USER_GID" -xpf -
+            }
+
+            if [ -d "$REF_ROOT" ]; then
+              shopt -s nullglob
+              for layer in "$REF_ROOT"/*; do
+                [ -d "$layer" ] || continue
+                apply_layer "$layer"
+              done
+              shopt -u nullglob
             fi
+
+            chmod 0755 "$TARGET_HOME_ROOT"
+            chmod 0755 "$TARGET_USER_HOME"
 
             if [ -d "$TARGET_USER_HOME/.ssh" ]; then
               chmod 0700 "$TARGET_USER_HOME/.ssh"
