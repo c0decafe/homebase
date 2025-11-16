@@ -409,13 +409,37 @@
           mkdir -p $out/etc/ssh
         '';
 
-        sshInitLink = pkgs.runCommand "homebase-ssh-init-link" {} ''
-          mkdir -p $out/usr/local/share
-          ln -s /bin/homebase-ssh-init-shim $out/usr/local/share/ssh-init.sh
-        '';
+        stockSshInit = pkgs.writeTextFile {
+          name = "homebase-stock-ssh-init";
+          destination = "/usr/local/share/ssh-init.sh";
+          executable = true;
+          text = ''
+#!/usr/bin/env bash
+# This script is intended to be run as root with a container that runs as root (even if you connect with a different user)
+# However, it supports running as a user other than root if passwordless sudo is configured for that same user.
+
+set -e 
+
+sudoIf()
+{
+    if [ "$(id -u)" -ne 0 ]; then
+        sudo "$@"
+    else
+        "$@"
+    fi
+}
+
+
+# ** Start SSH server **
+sudoIf /etc/init.d/ssh start 2>&1 | sudoIf tee /tmp/sshd.log > /dev/null
+
+set +e
+exec "$@"
+          '';
+        };
 
         sshLayer = buildLayer {
-          copyToRoot = [ sshRuntime sshStateDirs sshServiceRun ];
+          copyToRoot = [ sshRuntime sshStateDirs sshServiceRun stockSshInit ];
         };
 
         gossPreFile = pkgs.writeText "homebase-goss-pre.yaml" (builtins.readFile ./goss/pre/goss.yaml);
@@ -531,46 +555,11 @@ BUILD_ID="${buildId}"
           cp ${osReleaseFile} $out/etc/os-release
         '';
 
-        homebaseSshInitShim = pkgs.writeShellScriptBin "homebase-ssh-init-shim" ''
-          #!/usr/bin/env bash
-          set -euo pipefail
-
-          if pgrep -f homebase-ssh-service >/dev/null 2>&1; then
-            exit 0
-          fi
-
-          if [ "$(id -u)" -ne 0 ]; then
-            sudo /bin/homebase-ssh-service &
-          else
-            /bin/homebase-ssh-service &
-          fi
-
-          wait_for_sshd() {
-            for _ in $(seq 1 30); do
-              if pgrep -f homebase-ssh-service >/dev/null 2>&1; then
-                if ss -lnpt | grep -q ":2222"; then
-                  return 0
-                fi
-              fi
-              sleep 1
-            done
-            return 1
-          }
-
-          if wait_for_sshd; then
-            exit 0
-          fi
-
-          echo "[homebase-ssh-init] ssh service failed to start within timeout" >&2
-          exit 1
-        '';
-
         baseTools = pkgs.buildEnv {
           name = "homebase-base-tools";
           paths = runtimeTools ++ [
             homebaseSetup
             homebaseEntrypoint
-            homebaseSshInitShim
           ];
           pathsToLink = [ "/bin" "/share" "/usr" "/etc" ];
         };
@@ -586,7 +575,7 @@ BUILD_ID="${buildId}"
 
         # ---- Layers ----
         baseLayer = buildLayer {
-          copyToRoot = [ baseTools baseRuntime systemFiles baseHomeReference sshInitLink ];
+          copyToRoot = [ baseTools baseRuntime systemFiles baseHomeReference stockSshInit ];
         };
 
         userLayer = buildLayer {
@@ -750,7 +739,8 @@ EOF
               "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               "HOMEBASE_ENABLE_DOCKER=0"
             ];
-            Entrypoint = [ "/bin/homebase-entrypoint" "--init" ];
+            Entrypoint = [ "/usr/local/share/ssh-init.sh" ];
+            Cmd = [ "/bin/homebase-entrypoint" "--init" ];
             WorkingDir = "/workspaces";
             User       = "vscode";
             Labels = {

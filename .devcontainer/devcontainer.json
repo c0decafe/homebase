@@ -1,6 +1,6 @@
 {
   "name": "nix-homebase",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "image": "ghcr.io/c0decafe/homebase:latest",
   "runArgs": [
     "--security-opt",
     "no-new-privileges=false",
@@ -10,9 +10,7 @@
     "/run:rw,noexec,nosuid,size=256m"
   ],
   "forwardPorts": [2222],
-  "features": {
-    "ghcr.io/devcontainers/features/sshd:1": {}
-  },
+  "features": {},
   "customizations": {
     "vscode": {
       "extensions": [
@@ -56,5 +54,5 @@
       }
     }
   },
-  "postStartCommand": ""
+  "postStartCommand": "sudo /bin/homebase-entrypoint --post-start || true"
 }
