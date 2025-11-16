@@ -57,7 +57,9 @@
           else if self ? lastModified && self.lastModified != null then builtins.toString self.lastModified
           else "dev";
 
-        homebaseSetup = home.packages.${system}.setup;
+        homebaseSetup = pkgs.writeShellScriptBin "homebase-setup" ''
+          exec ${home.packages.${system}.setup}/bin/homebase-home-setup "$@"
+        '';
 
         sshServiceRun = pkgs.writeShellScriptBin "homebase-ssh-service" ''
           #!/usr/bin/env bash
