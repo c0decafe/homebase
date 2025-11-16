@@ -97,12 +97,12 @@ trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDS
             fi
 
             REF_ROOT=${homeFiles}${referenceRoot}
-            TARGET_HOME_ROOT="${TARGET_HOME_ROOT:-/home}"
+            TARGET_HOME_ROOT="''${TARGET_HOME_ROOT:-/home}"
             TARGET_USER_HOME="$TARGET_HOME_ROOT/vscode"
-            TARGET_WORKSPACES="${TARGET_WORKSPACES:-/workspaces}"
-            CODE_GROUP="${CODE_GROUP:-vscode}"
-            USER_UID="${USER_UID:-1000}"
-            USER_GID="${USER_GID:-1000}"
+            TARGET_WORKSPACES="''${TARGET_WORKSPACES:-/workspaces}"
+            CODE_GROUP="''${CODE_GROUP:-vscode}"
+            USER_UID="''${USER_UID:-1000}"
+            USER_GID="''${USER_GID:-1000}"
 
             ensure_user_dir() {
               local path="$1"
