@@ -69,8 +69,12 @@ jobs:
           docker tag homebase-sudo-local:latest ghcr.io/${{ github.repository_owner }}/homebase-sudo:latest
           docker push ghcr.io/${{ github.repository_owner }}/homebase-sudo:latest
 
-  home-flake-build:
+  home-flake-tools:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        attr: [ "cli", "editors", "containers", "desktop", "files" ]
+    name: home flake (${{ matrix.attr }})
     steps:
       - uses: actions/checkout@v4
 
@@ -87,15 +91,16 @@ jobs:
           name: c0decafe
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-      - name: Build and cache home flake
-        run: |
-          nix build -L --no-write-lock-file ./home#default
-          nix path-info ./home#default ./home#files | cachix push c0decafe
+      - name: Build ./home#${{ matrix.attr }}
+        run: nix build -L --no-write-lock-file "./home#${{ matrix.attr }}"
+
+      - name: Push ./home#${{ matrix.attr }} to Cachix
+        run: nix path-info "./home#${{ matrix.attr }}" | cachix push c0decafe
 
   build-test-push:
     needs:
       - sudo-base
-      - home-flake-build
+      - home-flake-tools
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
