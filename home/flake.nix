@@ -3,9 +3,11 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05-small";
+    devenv.url = "github:cachix/devenv";
+    devenv.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, devenv }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
@@ -13,9 +15,13 @@
       packages = forAllSystems (system:
         let
           pkgs = import nixpkgs { inherit system; };
-          userTools = with pkgs; [
+          baseUserTools = with pkgs; [
             nixVersions.stable fish tmux
+            openssh mosh gh
+            cloudflare-wrangler
           ];
+          devenvPackage = devenv.packages.${system}.default;
+          userTools = baseUserTools ++ [ devenvPackage ];
           editorTools = with pkgs; [
             git neovim ripgrep fd direnv nix-direnv codex pandoc
             gitAndTools.git-lfs nixd nodejs_22
