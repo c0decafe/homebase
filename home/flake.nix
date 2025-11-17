@@ -13,6 +13,25 @@
       packages = forAllSystems (system:
         let
           pkgs = import nixpkgs { inherit system; };
+          userTools = with pkgs; [
+            nixVersions.stable fish tmux
+          ];
+          editorTools = with pkgs; [
+            git neovim ripgrep fd direnv nix-direnv codex pandoc
+            gitAndTools.git-lfs nixd nodejs_22
+            nodePackages_latest.stylelint nodePackages_latest.prettier
+          ];
+          containerExtraTools = with pkgs; [
+            docker-compose skopeo rsync rclone
+          ];
+          desktopTools = with pkgs; [
+            firefox
+          ];
+          userToolEnv = pkgs.buildEnv {
+            name = "homebase-user-tools";
+            paths = userTools ++ editorTools ++ containerExtraTools ++ desktopTools;
+            pathsToLink = [ "/bin" "/share" "/etc" "/usr" ];
+          };
           referenceRoot = "/share/homebase/home-reference.d";
           homeFiles = pkgs.runCommand "homebase-home-reference" {} ''
             root=$out${referenceRoot}
@@ -22,18 +41,23 @@
             mkdir -p "$base/.ssh"
 
             install -Dm0644 ${pkgs.writeText "vscode-bashrc" ''
+export PATH="$HOME/.nix-profile/bin:$PATH"
 if command -v direnv >/dev/null 2>&1; then
   eval "$(direnv hook bash)"
 fi
             ''} "$base/.bashrc"
 
             install -Dm0644 ${pkgs.writeText "vscode-zshrc" ''
+export PATH="$HOME/.nix-profile/bin:$PATH"
 if command -v direnv >/dev/null 2>&1; then
   eval "$(direnv hook zsh)"
 fi
             ''} "$base/.zshrc"
 
             install -Dm0644 ${pkgs.writeText "nix.fish" ''
+if test -d $HOME/.nix-profile/bin
+  fish_add_path $HOME/.nix-profile/bin
+end
 if test -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
   source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.fish
 end
@@ -138,6 +162,14 @@ trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDS
                 tar -C "$TARGET_HOME_ROOT" --owner="$USER_UID" --group="$USER_GID" -xpf -
             }
 
+            install_profile_links() {
+              local target="$TARGET_USER_HOME/.nix-profile"
+              install -d -m 0755 "$target"
+              ln -sfn ${userToolEnv}/bin "$target/bin"
+              ln -sfn ${userToolEnv}/share "$target/share"
+              ln -sfn ${userToolEnv}/lib "$target/lib"
+            }
+
             if [ -d "$REF_ROOT" ]; then
               shopt -s nullglob
               for layer in "$REF_ROOT"/*; do
@@ -146,6 +178,8 @@ trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDS
               done
               shopt -u nullglob
             fi
+
+            install_profile_links
 
             chmod 0755 "$TARGET_HOME_ROOT"
             chmod 0755 "$TARGET_USER_HOME"

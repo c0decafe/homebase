@@ -5,11 +5,9 @@
     nixpkgs.url       = "github:NixOS/nixpkgs/nixos-25.05-small";
     flake-utils.url   = "github:numtide/flake-utils";
     nix2container.url = "github:nlewo/nix2container";
-    home.url          = "./home";
-    home.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, flake-utils, nix2container, home }:
+  outputs = { self, nixpkgs, flake-utils, nix2container }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
@@ -28,28 +26,11 @@
           bashInteractive coreutils findutils gnugrep gawk
           curl wget jq tree which gnused gnutar gzip xz
           procps util-linux iproute2 iputils socat
-        ];
-
-        userTools = with pkgs; [
-          nixVersions.stable fish tmux
-        ];
-
-        editorTools = with pkgs; [
-          git neovim ripgrep fd direnv nix-direnv codex pandoc
-          gitAndTools.git-lfs nixd nodejs_22
-          nodePackages_latest.stylelint nodePackages_latest.prettier
+          nixVersions.stable
         ];
 
         containerCoreTools = with pkgs; [
           docker containerd runc iptables pigz
-        ];
-
-        containerExtraTools = with pkgs; [
-          docker-compose skopeo rsync rclone
-        ];
-
-        desktopTools = with pkgs; [
-          firefox
         ];
 
         buildId =
@@ -57,8 +38,13 @@
           else if self ? lastModified && self.lastModified != null then builtins.toString self.lastModified
           else "dev";
 
+        homeFlakeUri = "github:c0decafe/homebase?dir=home#default";
+
         homebaseSetup = pkgs.writeShellScriptBin "homebase-setup" ''
-          exec ${home.packages.${system}.setup}/bin/homebase-home-setup "$@"
+          #!/usr/bin/env bash
+          set -euo pipefail
+          uri="''${HOMEBASE_HOME_FLAKE_URI:-${homeFlakeUri}}"
+          exec ${pkgs.nixVersions.stable}/bin/nix --extra-experimental-features 'nix-command flakes' run "$uri" -- "$@"
         '';
 
         sshServiceRun = pkgs.writeShellScriptBin "homebase-ssh-service" ''
@@ -207,7 +193,6 @@
 
           ssh_pid=""
           docker_pid=""
-          probe_pid=""
 
           start_ssh() {
             sudo /bin/homebase-ssh-service &
@@ -225,7 +210,7 @@
           fi
 
           cleanup() {
-            for pid in "''${ssh_pid}" "''${docker_pid}" "''${probe_pid}"; do
+            for pid in "''${ssh_pid}" "''${docker_pid}"; do
               if [ -n "$pid" ] && kill -0 "$pid" >/dev/null 2>&1; then
                 sudo kill "$pid" >/dev/null 2>&1 || true
                 wait "$pid" >/dev/null 2>&1 || true
@@ -383,86 +368,12 @@ BUILD_ID="${buildId}"
           copyToRoot = [ baseTools baseRuntime systemFiles ];
         };
 
-        userLayer = buildLayer {
-          copyToRoot = pkgs.buildEnv {
-            name = "homebase-user-tools";
-            paths = userTools;
-            pathsToLink = [ "/bin" "/share" "/etc" ];
-          };
-        };
-
-        editorLayer = buildLayer {
-          copyToRoot = [
-            (pkgs.buildEnv {
-              name = "homebase-editor";
-              paths = editorTools;
-              pathsToLink = [ "/bin" "/share" ];
-            })
-          ];
-        };
-
         containerLayer = buildLayer {
           copyToRoot = pkgs.buildEnv {
             name = "homebase-container";
             paths = containerCoreTools ++ [ dockerServiceRun ];
             pathsToLink = [ "/bin" "/share" "/usr" ];
           };
-        };
-
-        containerExtrasLayer = buildLayer {
-          copyToRoot = pkgs.buildEnv {
-            name = "homebase-container-extras";
-            paths = containerExtraTools;
-            pathsToLink = [ "/bin" "/share" "/usr" ];
-          };
-        };
-
-        desktopEnv = pkgs.buildEnv {
-          name = "homebase-desktop-env";
-          paths = desktopTools;
-          pathsToLink = [ "/bin" "/share" ];
-        };
-
-        desktopLayer = buildLayer {
-          copyToRoot = pkgs.runCommand "homebase-desktop" {} ''
-            mkdir -p $out
-            cp -a ${desktopEnv}/. $out/
-            install -Dm0755 ${pkgs.writeScript "desktop-init.sh" ''
-              #!/usr/bin/env bash
-              set -euo pipefail
-
-              export PATH=${pkgs.lib.makeBinPath [ pkgs.firefox pkgs.x11vnc pkgs.novnc pkgs.xorg.xvfb pkgs.busybox pkgs.python3Packages.websockify ]}:$PATH
-
-              XVFB_DISPLAY="''${DISPLAY:-:99}"
-              XVFB_W="1280"
-              XVFB_H="768"
-              XVFB_DPI="96"
-              NOVNC_PORT="''${NOVNC_PORT:-6080}"
-
-              if pgrep -f "Xvfb $XVFB_DISPLAY" >/dev/null; then
-                echo "Browser session already running on display $XVFB_DISPLAY" >&2
-                exit 0
-              fi
-
-              Xvfb "$XVFB_DISPLAY" -screen 0 ''${XVFB_W}x''${XVFB_H}x24 -dpi "$XVFB_DPI" >/tmp/xvfb.log 2>&1 &
-              XVFB_PID=$!
-              sleep 1
-
-              DISPLAY="$XVFB_DISPLAY" firefox >/tmp/firefox.log 2>&1 &
-
-              x11vnc -display "$XVFB_DISPLAY" -localhost -nopw -forever -shared -bg >/tmp/x11vnc.log 2>&1
-
-              if command -v websockify >/dev/null 2>&1; then
-                websockify --web ${pkgs.novnc}/share/novnc $NOVNC_PORT 127.0.0.1:5900 >/tmp/websockify.log 2>&1 &
-              else
-                echo "websockify not available in PATH" >&2
-                kill $XVFB_PID || true
-                exit 1
-              fi
-
-              wait $XVFB_PID
-            ''} $out/etc/init.d/desktop-init.sh
-          '';
         };
 
         sudoStreamImage = pkgs.dockerTools.buildImage {
@@ -522,19 +433,15 @@ EOF
           layers = [
             compatLayer
             baseLayer
-            userLayer
             gossRuntimeLayer
             gossLayer
-            editorLayer
             containerLayer
-            containerExtrasLayer
-            # desktopLayer
             sshLayer
           ];
 
           config = {
             Env = [
-              "PATH=/bin"
+              "PATH=/bin:/usr/local/bin"
               "EDITOR=nvim"
               "PAGER=less"
               "LC_ALL=C"

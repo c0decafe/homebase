@@ -17,8 +17,6 @@ file:
     exists: true
     filetype: symlink
     linked-to: doas
-  /bin/nvim:
-    exists: true
   /bin/docker:
     exists: true
 
@@ -47,9 +45,6 @@ command:
     exit-status: 0
   sudo-works:
     exec: bash -lc "sudo -n true"
-    exit-status: 0
-  nvim-version:
-    exec: bash -lc "nvim --version >/dev/null"
     exit-status: 0
   docker-version:
     exec: bash -lc "docker --version >/dev/null"
