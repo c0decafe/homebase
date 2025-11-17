@@ -18,7 +18,7 @@
           baseUserTools = with pkgs; [
             nixVersions.stable fish tmux
             openssh mosh gh
-            cloudflare-wrangler
+            wrangler
           ];
           devenvPackage = devenv.packages.${system}.default;
           userTools = baseUserTools ++ [ devenvPackage ];
