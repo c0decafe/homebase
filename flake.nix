@@ -182,29 +182,9 @@
           wait "$dockerd_pid"
         '';
 
-        telemetryUrl = "https://ntfy.sh/homebase-telemetry";
-
         homebaseEntrypoint = pkgs.writeShellScriptBin "homebase-entrypoint" ''
           #!/usr/bin/env bash
           set -euo pipefail
-          TELEMETRY_URL="${telemetryUrl}"
-
-          telemetry() {
-            local event="$1"
-            local extra="''${2:-}"
-            if [ -z "''${TELEMETRY_URL:-}" ] || ! command -v curl >/dev/null 2>&1; then
-              return
-            fi
-            local ts host payload extra_s
-            ts=$(date +%s 2>/dev/null || echo 0)
-            host=$(hostname 2>/dev/null || echo unknown)
-            extra_s=$(printf '%s' "$extra" | tr ' ' '_' )
-            payload="event=$(printf '%s' "$event" | tr ' ' '_' ) ts=$ts host=$host"
-            if [ -n "$extra_s" ]; then
-              payload="$payload data=$extra_s"
-            fi
-            curl -fsS -X POST --max-time 3 -H "Title: homebase-entrypoint" -H "Tags: ssh" -d "$payload" "''${TELEMETRY_URL}" >/dev/null 2>&1 || true
-          }
 
           mode="post-start"
           if [ "''${1:-}" = "--init" ]; then
@@ -214,7 +194,6 @@
             mode="post-start"
             shift
           fi
-          telemetry "entrypoint_mode" "$mode"
 
           cmd=( "$@" )
           if [ "$mode" = "post-start" ]; then
@@ -224,9 +203,7 @@
             cmd=(/bin/bash -lc "sleep infinity")
           fi
 
-          telemetry "entrypoint_before_setup"
           sudo /bin/homebase-setup
-          telemetry "entrypoint_after_setup"
 
           ssh_pid=""
           docker_pid=""
@@ -235,36 +212,17 @@
           start_ssh() {
             sudo /bin/homebase-ssh-service &
             ssh_pid=$!
-            telemetry "entrypoint_ssh_started"
           }
 
           start_docker() {
             sudo /bin/homebase-docker-service &
             docker_pid=$!
-            telemetry "entrypoint_docker_started"
           }
 
           start_ssh
           if [ "''${HOMEBASE_ENABLE_DOCKER:-1}" = "1" ]; then
             start_docker
           fi
-
-          start_probe() {
-            local port=4505
-            if [ "$mode" != "post-start" ]; then
-              telemetry "entrypoint_probe_skipped" "$mode"
-              return
-            fi
-            if ! command -v socat >/dev/null 2>&1; then
-              telemetry "entrypoint_probe_missing_socat"
-              return
-            fi
-            socat TCP-LISTEN:"$port",reuseaddr,fork SYSTEM:'printf "homebase post-start ready\n"' >/tmp/homebase-poststart-probe.log 2>&1 &
-            probe_pid=$!
-            telemetry "entrypoint_probe_started" "$port"
-          }
-
-          start_probe
 
           cleanup() {
             for pid in "''${ssh_pid}" "''${docker_pid}" "''${probe_pid}"; do
@@ -283,11 +241,9 @@
 
           if [ "$mode" = "post-start" ]; then
             echo "[homebase-entrypoint] post-start initialization complete" >&2
-             telemetry "entrypoint_poststart_exit"
             exit 0
           fi
 
-          telemetry "entrypoint_exec" "$mode"
           "''${cmd[@]}"
         '';
 
@@ -336,78 +292,8 @@
           mkdir -p $out/etc/ssh
         '';
 
-        stockSshInit = pkgs.writeTextFile {
-          name = "homebase-stock-ssh-init";
-          destination = "/usr/local/share/ssh-init.sh";
-          executable = true;
-          text = ''
-#!/usr/bin/env bash
-# Compatible with the default devcontainer ssh init helper but launches the homebase ssh service.
-
-set -euo pipefail
-TELEMETRY_URL="${telemetryUrl}"
-
-telemetry() {
-  local event="$1"
-  local extra="''${2:-}"
-  if [ -z "''${TELEMETRY_URL:-}" ] || ! command -v curl >/dev/null 2>&1; then
-    return
-  fi
-  local ts host payload extra_s
-  ts=$(date +%s 2>/dev/null || echo 0)
-  host=$(hostname 2>/dev/null || echo unknown)
-  extra_s=$(printf '%s' "$extra" | tr ' ' '_' )
-  payload="event=$(printf '%s' "$event" | tr ' ' '_' ) ts=$ts host=$host"
-  if [ -n "$extra_s" ]; then
-    payload="$payload data=$extra_s"
-  fi
-  curl -fsS -X POST --max-time 3 -H "Title: homebase-ssh-init" -H "Tags: ssh" -d "$payload" "''${TELEMETRY_URL}" >/dev/null 2>&1 || true
-}
-telemetry "ssh_init_start"
-
-LOGFILE=/tmp/sshd.log
-ssh_pid=""
-
-start_service() {
-  if [ "$(id -u)" -ne 0 ]; then
-    sudo /bin/homebase-ssh-service >>"$LOGFILE" 2>&1 &
-  else
-    /bin/homebase-ssh-service >>"$LOGFILE" 2>&1 &
-  fi
-  ssh_pid=$!
-  telemetry "ssh_init_start_service"
-}
-
-wait_for_port() {
-  for _ in $(seq 1 30); do
-    if ss -lnpt | grep -q ":2222"; then
-      telemetry "ssh_init_port_ready"
-      return 0
-    fi
-    sleep 1
-  done
-  telemetry "ssh_init_port_timeout"
-  return 1
-}
-
-if ! pgrep -f homebase-ssh-service >/dev/null 2>&1; then
-  start_service
-else
-  telemetry "ssh_init_service_existing"
-fi
-
-if ! wait_for_port; then
-  echo "[ssh-init] ssh service failed to start (see $LOGFILE)" >&2
-fi
-
-set +e
-telemetry "ssh_init_exec"
-exec "$@"
-          '';
-        };
-
         sshLayer = buildLayer {
-          copyToRoot = [ sshRuntime sshStateDirs sshServiceRun stockSshInit ];
+          copyToRoot = [ sshRuntime sshStateDirs sshServiceRun ];
         };
 
         gossPreFile = pkgs.writeText "homebase-goss-pre.yaml" (builtins.readFile ./goss/pre/goss.yaml);
@@ -494,7 +380,7 @@ BUILD_ID="${buildId}"
 
         # ---- Layers ----
         baseLayer = buildLayer {
-          copyToRoot = [ baseTools baseRuntime systemFiles stockSshInit ];
+          copyToRoot = [ baseTools baseRuntime systemFiles ];
         };
 
         userLayer = buildLayer {

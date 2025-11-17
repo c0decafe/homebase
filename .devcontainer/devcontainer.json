@@ -1,51 +1,11 @@
 {
   "name": "nix-homebase",
   "image": "ghcr.io/c0decafe/homebase:latest",
-  "runArgs": [],
+  "runArgs": [
+    "--tmpfs",
+    "/tmp:exec,mode=1777"
+  ],
   "forwardPorts": [],
   "features": {},
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "jnoortheen.nix-ide",
-        "arrterian.nix-env-selector",
-        "mkhl.direnv",
-        "vscodevim.vim",
-        "asvetliakov.vscode-neovim",
-        "yzhang.markdown-all-in-one",
-        "DavidAnson.vscode-markdownlint",
-        "esbenp.prettier-vscode",
-        "dbaeumer.vscode-eslint",
-        "stylelint.vscode-stylelint",
-        "ms-azuretools.vscode-docker",
-        "redhat.vscode-yaml",
-        "cloudflare.cloudflare-workers",
-        "openai.chatgpt"
-      ],
-      "settings": {
-        "files.trimTrailingWhitespace": true,
-        "editor.formatOnSave": true,
-        "editor.minimap.enabled": false,
-        "editor.cursorBlinking": "solid",
-        "editor.renderWhitespace": "boundary",
-        "editor.rulers": [
-          80
-        ],
-        "editor.guides.bracketPairsHorizontal": "active",
-        "editor.lineNumbers": "relative",
-        "editor.smoothScrolling": true,
-        "vim.enableNeovim": true,
-        "vim.neovimUseWSL": false,
-        "vim.useSystemClipboard": true,
-        "vim.statusBarColorControl": true,
-        "vim.highlightedyank.enable": true,
-        "workbench.startupEditor": "none",
-        "workbench.tips.enabled": false,
-        "workbench.welcomePage.walkthroughs.openOnInstall": false,
-        "extensions.ignoreRecommendations": true,
-        "telemetry.telemetryLevel": "off"
-      }
-    }
-  },
   "postStartCommand": "sudo /bin/homebase-entrypoint --post-start || true"
 }
