@@ -26,9 +26,12 @@ jobs:
       - name: Update flake.lock
         run: nix flake update
 
+      - name: Update home/flake.lock
+        run: nix flake update ./home
+
       - name: Commit and push lockfile
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: update flake.lock"
           branch: ${{ github.ref_name }}
-          file_pattern: "flake.lock"
+          file_pattern: "flake.lock home/flake.lock"
