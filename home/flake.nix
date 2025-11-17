@@ -33,9 +33,29 @@
           desktopTools = with pkgs; [
             firefox
           ];
+          cliToolEnv = pkgs.buildEnv {
+            name = "homebase-cli-tools";
+            paths = userTools;
+            pathsToLink = [ "/bin" "/share" "/etc" "/usr" ];
+          };
+          editorToolEnv = pkgs.buildEnv {
+            name = "homebase-editor-tools";
+            paths = editorTools;
+            pathsToLink = [ "/bin" "/share" "/etc" "/usr" ];
+          };
+          containerToolEnv = pkgs.buildEnv {
+            name = "homebase-container-tools";
+            paths = containerExtraTools;
+            pathsToLink = [ "/bin" "/share" "/etc" "/usr" ];
+          };
+          desktopToolEnv = pkgs.buildEnv {
+            name = "homebase-desktop-tools";
+            paths = desktopTools;
+            pathsToLink = [ "/bin" "/share" "/etc" "/usr" ];
+          };
           userToolEnv = pkgs.buildEnv {
             name = "homebase-user-tools";
-            paths = userTools ++ editorTools ++ containerExtraTools ++ desktopTools;
+            paths = [ cliToolEnv editorToolEnv containerToolEnv desktopToolEnv ];
             pathsToLink = [ "/bin" "/share" "/etc" "/usr" ];
           };
           referenceRoot = "/share/homebase/home-reference.d";
@@ -198,6 +218,10 @@ trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDS
           '';
         in {
           files = homeFiles;
+          cli = cliToolEnv;
+          editors = editorToolEnv;
+          containers = containerToolEnv;
+          desktop = desktopToolEnv;
           setup = setupScript;
           default = setupScript;
         });
