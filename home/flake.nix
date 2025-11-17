@@ -21,7 +21,6 @@
             wrangler
           ];
           devenvPackage = devenv.packages.${system}.default;
-          userTools = baseUserTools ++ [ devenvPackage ];
           editorTools = with pkgs; [
             git neovim ripgrep fd direnv nix-direnv codex pandoc
             gitAndTools.git-lfs nixd nodejs_22
@@ -35,7 +34,12 @@
           ];
           cliToolEnv = pkgs.buildEnv {
             name = "homebase-cli-tools";
-            paths = userTools;
+            paths = baseUserTools;
+            pathsToLink = [ "/bin" "/share" "/etc" "/usr" ];
+          };
+          devenvToolEnv = pkgs.buildEnv {
+            name = "homebase-devenv-tools";
+            paths = [ devenvPackage ];
             pathsToLink = [ "/bin" "/share" "/etc" "/usr" ];
           };
           editorToolEnv = pkgs.buildEnv {
@@ -55,7 +59,7 @@
           };
           userToolEnv = pkgs.buildEnv {
             name = "homebase-user-tools";
-            paths = [ cliToolEnv editorToolEnv containerToolEnv desktopToolEnv ];
+            paths = [ cliToolEnv devenvToolEnv editorToolEnv containerToolEnv desktopToolEnv ];
             pathsToLink = [ "/bin" "/share" "/etc" "/usr" ];
           };
           referenceRoot = "/share/homebase/home-reference.d";
@@ -219,6 +223,7 @@ trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDS
         in {
           files = homeFiles;
           cli = cliToolEnv;
+          devenv = devenvToolEnv;
           editors = editorToolEnv;
           containers = containerToolEnv;
           desktop = desktopToolEnv;

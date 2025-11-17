@@ -73,7 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        attr: [ "cli", "editors", "containers", "desktop", "files" ]
+        attr: [ "cli", "devenv", "editors", "containers", "desktop", "files" ]
     name: home flake (${{ matrix.attr }})
     steps:
       - uses: actions/checkout@v4
