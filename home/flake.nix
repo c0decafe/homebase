@@ -164,10 +164,8 @@ trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDS
 
             install_profile_links() {
               local target="$TARGET_USER_HOME/.nix-profile"
-              install -d -m 0755 "$target"
-              ln -sfn ${userToolEnv}/bin "$target/bin"
-              ln -sfn ${userToolEnv}/share "$target/share"
-              ln -sfn ${userToolEnv}/lib "$target/lib"
+              ln -sfn ${userToolEnv} "$target"
+              chown -h "$USER_UID:$USER_GID" "$target"
             }
 
             if [ -d "$REF_ROOT" ]; then

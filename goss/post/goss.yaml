@@ -31,11 +31,6 @@ file:
     group: vscode
   /home/vscode/.nix-profile:
     exists: true
-    filetype: directory
-    owner: vscode
-    group: vscode
-  /home/vscode/.nix-profile/bin:
-    exists: true
     filetype: symlink
   /home/vscode/.nix-profile/bin/nvim:
     exists: true
