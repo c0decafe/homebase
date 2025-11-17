@@ -27,7 +27,7 @@ jobs:
         run: nix flake update
 
       - name: Update home/flake.lock
-        run: nix flake update ./home
+        run: nix flake update --flake ./home
 
       - name: Commit and push lockfile
         uses: stefanzweifel/git-auto-commit-action@v5
