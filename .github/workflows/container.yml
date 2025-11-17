@@ -91,6 +91,9 @@ jobs:
       - name: Flake checks
         run: nix flake check -L --no-write-lock-file
 
+      - name: Home flake checks
+        run: nix flake check -L --no-write-lock-file ./home
+
       - name: Build image tarball
         run: nix build -L --no-write-lock-file .#homebase
 
