@@ -69,8 +69,33 @@ jobs:
           docker tag homebase-sudo-local:latest ghcr.io/${{ github.repository_owner }}/homebase-sudo:latest
           docker push ghcr.io/${{ github.repository_owner }}/homebase-sudo:latest
 
+  home-flake-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-25.05-small
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Cachix
+        uses: cachix/cachix-action@v14
+        with:
+          name: c0decafe
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Build and cache home flake
+        run: |
+          nix build -L --no-write-lock-file ./home#default
+          nix path-info ./home#default ./home#files | cachix push c0decafe
+
   build-test-push:
-    needs: sudo-base
+    needs:
+      - sudo-base
+      - home-flake-build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -90,12 +115,6 @@ jobs:
 
       - name: Flake checks
         run: nix flake check -L --no-write-lock-file
-
-      - name: Home flake checks
-        run: nix flake check -L --no-write-lock-file ./home
-
-      - name: Home flake build
-        run: nix build -L --no-write-lock-file ./home#default
 
       - name: Build image tarball
         run: nix build -L --no-write-lock-file .#homebase
