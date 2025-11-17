@@ -61,15 +61,3 @@ command:
   sshd-listens-2222:
     exec: bash -lc "ss -lnpt | grep ':2222'"
     exit-status: 0
-  user-nvim-available:
-    exec: bash -lc "sudo -u vscode /home/vscode/.nix-profile/bin/nvim --version >/dev/null"
-    exit-status: 0
-  user-direnv-available:
-    exec: bash -lc "sudo -u vscode /home/vscode/.nix-profile/bin/direnv version >/dev/null"
-    exit-status: 0
-  user-git-available:
-    exec: bash -lc "sudo -u vscode /home/vscode/.nix-profile/bin/git --version >/dev/null"
-    exit-status: 0
-  user-docker-compose-available:
-    exec: bash -lc "sudo -u vscode /home/vscode/.nix-profile/bin/docker-compose version >/dev/null"
-    exit-status: 0
