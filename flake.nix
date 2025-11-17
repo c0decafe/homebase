@@ -44,7 +44,10 @@
           #!/usr/bin/env bash
           set -euo pipefail
           uri="''${HOMEBASE_HOME_FLAKE_URI:-${homeFlakeUri}}"
-          exec ${pkgs.nixVersions.stable}/bin/nix --extra-experimental-features 'nix-command flakes' run "$uri" -- "$@"
+          exec ${pkgs.nixVersions.stable}/bin/nix \
+            --extra-experimental-features 'nix-command flakes' \
+            --option build-users-group "" \
+            run "$uri" -- "$@"
         '';
 
         sshServiceRun = pkgs.writeShellScriptBin "homebase-ssh-service" ''
