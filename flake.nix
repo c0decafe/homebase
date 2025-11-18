@@ -44,9 +44,13 @@
           #!/usr/bin/env bash
           set -euo pipefail
           uri="''${HOMEBASE_HOME_FLAKE_URI:-${homeFlakeUri}}"
+          substituters="https://cache.nixos.org https://c0decafe.cachix.org"
+          keys="cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= c0decafe.cachix.org-1:FaWyZbWwIJviWPxv24KIq6wlCXAQ3B1cR4HlBBCLrX8="
           exec ${pkgs.nixVersions.stable}/bin/nix \
             --extra-experimental-features 'nix-command flakes' \
             --option build-users-group "" \
+            --option substituters "$substituters" \
+            --option trusted-public-keys "$keys" \
             run --no-write-lock-file "$uri" -- "$@"
         '';
 
