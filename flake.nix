@@ -47,7 +47,7 @@
           exec ${pkgs.nixVersions.stable}/bin/nix \
             --extra-experimental-features 'nix-command flakes' \
             --option build-users-group "" \
-            run "$uri" -- "$@"
+            run --no-write-lock-file "$uri" -- "$@"
         '';
 
         sshServiceRun = pkgs.writeShellScriptBin "homebase-ssh-service" ''
