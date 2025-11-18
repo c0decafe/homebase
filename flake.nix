@@ -351,6 +351,14 @@ BUILD_ID="${buildId}"
           mkdir -p $out/etc $out/lib $out/usr/sbin
           cp ${osReleaseFile} $out/etc/os-release
         '';
+        nixConfig = pkgs.writeTextFile {
+          name = "homebase-nix.conf";
+          destination = "/etc/nix/nix.conf";
+          text = ''
+            substituters = https://cache.nixos.org https://c0decafe.cachix.org
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= c0decafe.cachix.org-1:FaWyZbWwIJviWPxv24KIq6wlCXAQ3B1cR4HlBBCLrX8=
+          '';
+        };
 
         baseTools = pkgs.buildEnv {
           name = "homebase-base-tools";
@@ -372,7 +380,7 @@ BUILD_ID="${buildId}"
 
         # ---- Layers ----
         baseLayer = buildLayer {
-          copyToRoot = [ baseTools baseRuntime systemFiles ];
+          copyToRoot = [ baseTools baseRuntime systemFiles nixConfig ];
         };
 
         containerLayer = buildLayer {
