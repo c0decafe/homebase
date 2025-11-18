@@ -465,8 +465,7 @@ EOF
               "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               "HOMEBASE_ENABLE_DOCKER=0"
             ];
-            Entrypoint = [ "/usr/local/share/ssh-init.sh" ];
-            Cmd = [ "/bin/homebase-entrypoint" "--init" ];
+            Entrypoint = [ "/bin/homebase-entrypoint" "--init" ];
             WorkingDir = "/workspaces";
             User       = "vscode";
             Labels = {
